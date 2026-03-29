@@ -1,26 +1,27 @@
 #include "encryption.h" 
 
-int pkcs5_keyed_hash(const char *plain,
-                     size_t plain_size,
-                     unsigned char *hash,
+int pkcs5_keyed_hash(const char *master,
+                     size_t master_size,
+                     unsigned char *key,
                      unsigned char *salt,
                      size_t salt_size,
                      const EVP_MD *digest,
                      size_t key_size,
-                     uint32_t password_hashing_iters) {
-  ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+                     uint32_t iters) {
+  ERROR_CHECK_NULL_LOG(master,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(digest,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_SUCCESS_LOG(
     (PKCS5_PBKDF2_HMAC(
-      plain, plain_size,
+      master, 
+      master_size,
       salt,
       salt_size ,
-      password_hashing_iters,
+      iters,
       digest,
       key_size,
-      hash))
+      key))
     ,
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
@@ -29,7 +30,7 @@ int pkcs5_keyed_hash(const char *plain,
   return ERROR_SUCCESS;
 } 
 
-int hash_no_keyed(const unsigned char *plain,
+int hash_not_keyed(const unsigned char *plain,
                   size_t plain_size,
                   const EVP_MD *type 
                   ,unsigned char *hash

@@ -17,7 +17,6 @@ typedef struct GlobalConf_s {
    * we're safe*/
   uint32_t key_derivation_iters;  
   uint32_t password_hashing_iters;
-  HashOption_t hash_algorithm;
 }GlobalConf_t ;
 extern GlobalConf_t *globalconf;
 #endif /* ifdef GLOBALCONF_H */

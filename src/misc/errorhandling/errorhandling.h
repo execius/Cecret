@@ -45,7 +45,8 @@ enum ERROR_ErrorCodes {
   LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX= -300,
   ERROR_STDLIB_FAILURE = -301,
   ERROR_LIBSSL_FAILURE = -302,
-  ERROR_SQLITE_FAILURE = -303
+  ERROR_SQLITE_FAILURE = -303,
+  ERROR_USER_INIT = -304
 };
 
 /*expects a non null [errstct] ideally you'd 
@@ -94,6 +95,18 @@ do {\
   }\
 } while (0)
 
+
+/*checks if the expression  is successfull , if not it returns an error code */
+#define ERROR_CHECK_SUCCESS_GOTO_LOG(exp,successcode,errcode,desc,label) \
+do {\
+  if(successcode != (exp)){\
+    ErrorStruct_t *errstct;\
+    Error_InitErrorStruct(&errstct,errcode,__LINE__,__func__,__FILE__,desc);\
+    Error_LogError(errstct);\
+    Error_DestroyErrorStruct(errstct);\
+    goto label;\
+  }\
+} while (0)
 /*like ERROR_CHECK_SUCCESS_RET but logs*/
 #define ERROR_CHECK_SUCCESS_LOG(exp,successcode,errcode,desc) \
 do {\
