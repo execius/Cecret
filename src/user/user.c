@@ -2,6 +2,8 @@
 
 
 
+
+/*the password MUST be null terminated !*/
 int InitUser(user_t **user,
              const char *username
              ,const unsigned char *password
@@ -55,7 +57,6 @@ int InitUser(user_t **user,
                                failure);
 
   memcpy(&(*user)->userconf,&userconfig,sizeof(UserConfig_t));
-  (*user)->user_db_id = 0 ;
   return ERROR_SUCCESS;
 failure:
   OPENSSL_cleanse((*user)->hashed_pass, STRMAX);

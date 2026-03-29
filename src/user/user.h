@@ -10,7 +10,7 @@ typedef struct user_s {
   unsigned char enc_salt[STRMAX];
   /*used for lookup*/
   unsigned char hmac_salt[STRMAX];
-  long int user_db_id;
+  char user_db_path[STRMAX];
   UserConfig_t userconf;
 } user_t;
 int InitUser(user_t **user,
