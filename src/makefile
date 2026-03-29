@@ -1,7 +1,7 @@
 CC=clang
 remove=rm
-DEPENDENCIES=
-DEBFLGS=-g -Wall  -pedantic -fsanitize=thread
+DEPENDENCIES= -lsqlite3 -lssl -lcrypto
+DEBFLGS=-g -Wall  -pedantic -fsanitize=thread 
 OPFLGS=-O3  
 PREFIX ?= /usr/local
 

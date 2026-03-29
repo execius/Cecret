@@ -33,6 +33,7 @@ typedef struct ErrorStruct_s ErrorStruct_t;
  * file here :*/
 
 enum ERROR_ErrorCodes {
+  LIBSSL_SUCCESS = 1,
   ERROR_SUCCESS = 0,
   ERROR_MEMORY_ALLOCATION = -2,
   ERROR_NULL_VALUE_GIVEN = -6,
@@ -42,7 +43,9 @@ enum ERROR_ErrorCodes {
   ERROR_LOGERROR=-202,
   ERROR_ERRORSTRUCT_INIT = -203,
   LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX= -300,
-  ERROR_STDLIB_FAILURE = -301
+  ERROR_STDLIB_FAILURE = -301,
+  ERROR_LIBSSL_FAILURE = -302,
+  ERROR_SQLITE_FAILURE = -303
 };
 
 /*expects a non null [errstct] ideally you'd 
@@ -141,7 +144,7 @@ do {\
     ErrorStruct_t *errstct;\
     Error_InitErrorStruct(&errstct,MemAllocError,__LINE__,__func__,__FILE__,desc);\
     Error_LogError(errstct);\
-    Error_DestroyErrorStruct(errstct)\
+    Error_DestroyErrorStruct(errstct);\
     return MemAllocError;\
   }\
 } while (0)
