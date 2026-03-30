@@ -46,7 +46,8 @@ enum ERROR_ErrorCodes {
   ERROR_STDLIB_FAILURE = -301,
   ERROR_LIBSSL_FAILURE = -302,
   ERROR_SQLITE_FAILURE = -303,
-  ERROR_USER_INIT = -304
+  ERROR_USER_INIT = -304,
+  ERROR_CANNOT_OPEN_DB = -305
 };
 
 /*expects a non null [errstct] ideally you'd 

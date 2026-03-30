@@ -1,8 +1,49 @@
 #ifndef SQLTINTR
 #define SQLTINTR
 #include "includes.h"
+#include "globalconfig.h"
 
-int opendb(sqlite3 **db,const char *path,char *errmsg);
+int opendb(sqlite3 **db,const char *path);
 int closedb(sqlite3 *db);
+int make_master_db(void);
+int make_user_db(sqlite3 **db);
 
+  const char *master_db_template =
+    "\
+CREATE TABLE master (\
+id INTEGER PRIMARY KEY,\
+username TEXT NOT NULL UNIQUE,\
+db_path TEXT NOT NULL UNIQUE);";
+
+  const char *creds_template =
+    "\
+CREATE TABLE credentials (\
+id INTEGER PRIMARY KEY,\
+username_cipher BLOB NOT NULL ,\
+email_cipher BLOB NOT NULL ,\
+password_cipher BLOB NOT NULL ,\
+platform_cipher BLOB NOT NULL ,\
+note_cipher BLOB NOT NULL,\
+username_hash BLOB NOT NULL ,\
+platform_hash BLOB NOT NULL ,\
+email_hash BLOB NOT NULL);\
+CREATE INDEX idx_username_hash ON credentials(username_hash);\
+CREATE INDEX idx_email_hash ON credentials(email_hash);\
+CREATE INDEX idx_platform_hash ON credentials(platform_hash)";
+
+
+  const char *configs_template =
+    "\
+CREATE TABLE configs (\
+id INTEGER PRIMARY KEY CHECK (id = 1),\
+username TEXT NOT NULL ,\
+hashed_pass BLOB NOT NULL ,\
+enc_salt BLOB NOT NULL ,\
+hmac_salt BLOB NOT NULL ,\
+\
+encryption_algorithm_enum INTEGER ,\
+\
+hashing_algorithm_enum INTEGER ,\
+\
+keyed_hashing_algorithm_enum INTEGER );WITHOUT ROWID";
 #endif /* ifndef MACRO */
