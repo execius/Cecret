@@ -5,6 +5,7 @@
 int opendb(sqlite3 **db,const char *path){
 
   ERROR_CHECK_NULL_LOG(path,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
   ERROR_CHECK_SUCCESS_LOG(
     (sqlite3_open(path,db)),
     SQLITE_OK,
@@ -15,12 +16,26 @@ int opendb(sqlite3 **db,const char *path){
 }
 int make_master_db(void){
   char *err = NULL;
+  char *master_db_filepath = NULL;
   sqlite3 *master;
-  ERROR_CHECK_SUCCESS_LOG(
-  (opendb(&master,globalconf->master_db_path)),
+  MALLOC_CHECK_NULL_LOG(master_db_filepath,3*STRMAX,ERROR_MEMORY_ALLOCATION,
+                        "cannot allocate master db file path");
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  (snprintf(master_db_filepath,
+            3*STRMAX-1, "%s/%s",globalconf->master_db_dir_path,"master.db") > 0),
+  1,
+  ERROR_STDLIB_FAILURE,
+  "failed to initialize user db path",
+  failure_stdlib);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  (opendb(&master,master_db_filepath)),
   ERROR_SUCCESS,
   ERROR_CANNOT_OPEN_DB,
-  "cannot open db");
+  "cannot open db",
+  failure_sqlite);
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
     (sqlite3_exec(master,
@@ -31,16 +46,79 @@ int make_master_db(void){
     SQLITE_OK,
     ERROR_SQLITE_FAILURE,
     err,
-    failure);
+    failure_sqlite);
 
+  free(master_db_filepath);
   return ERROR_SUCCESS;
-failure:
+failure_stdlib:
+  free(master_db_filepath);
   free(err);
-  closedb(master);
+  return ERROR_STDLIB_FAILURE;
+failure_sqlite:
+  free(master_db_filepath);
+  free(err);
   return ERROR_SQLITE_FAILURE;
 }
-int make_user_db(sqlite3 **db){
+int make_user_db(user_t *user){
+  char *err = NULL;
+  char *user_db_filepath = NULL;
+  sqlite3 *user_db;
+  MALLOC_CHECK_NULL_LOG(user_db_filepath,3*STRMAX,ERROR_MEMORY_ALLOCATION,
+                        "cannot allocate user db file path");
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (snprintf(user_db_filepath,
+              3*STRMAX-1,
+              "%s/%s/%s%s",
+              globalconf->master_db_dir_path,
+              user->username,
+              user->username,
+              ".db")
+    > 0),
+    1,
+    ERROR_STDLIB_FAILURE,
+    "failed to initialize user db path",
+    failure_stdlib);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  (opendb(&user_db,user_db_filepath)),
+  ERROR_SUCCESS,
+  ERROR_CANNOT_OPEN_DB,
+  "cannot open user db",
+  failure_sqlite);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (sqlite3_exec(user_db,
+                  creds_template,
+                  NULL,
+                  NULL,
+                  &err)),
+    SQLITE_OK,
+    ERROR_SQLITE_FAILURE,
+    err,
+    failure_sqlite);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (sqlite3_exec(user_db,
+                  configs_template,
+                  NULL,
+                  NULL,
+                  &err)),
+    SQLITE_OK,
+    ERROR_SQLITE_FAILURE,
+    err,
+    failure_sqlite);
+  free(user_db_filepath);
   return ERROR_SUCCESS;
+failure_stdlib:
+  free(user_db_filepath);
+  free(err);
+  return ERROR_STDLIB_FAILURE;
+failure_sqlite:
+  free(user_db_filepath);
+  free(err);
+  return ERROR_SQLITE_FAILURE;
 
 }
 

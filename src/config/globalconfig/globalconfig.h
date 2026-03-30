@@ -7,7 +7,7 @@ typedef struct GlobalConf_s {
   uint16_t config_version;
   
   /*for easy and configurable access*/
-  char master_db_path[STRMAX];
+  char master_db_dir_path[STRMAX];
   char backup_dir_path[STRMAX];
 
   /*iterations for key derivation / password hashing 
