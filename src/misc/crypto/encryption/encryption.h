@@ -20,12 +20,12 @@ typedef struct EncryptedBuff_s {
 } EncryptedBuff_t ;
 
 int pkcs5_keyed_hash(const char *master,
-                     size_t master_size,
+                     int  master_size,
                      unsigned char *key,
                      unsigned char *salt,
-                     size_t salt_size,
+                     int salt_size,
                      const EVP_MD *digest,
-                     size_t key_size,
+                     int key_size,
                      uint32_t iters) ;
 int hash_not_keyed(const unsigned char *plain,
                   size_t plain_size,
