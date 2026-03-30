@@ -1,6 +1,7 @@
 #ifndef ENCRYPTION_H
 #define ENCRYPTION_H
 
+
 #include "includes.h"
 
 typedef struct EncryptionOption_s {
@@ -19,6 +20,8 @@ typedef struct EncryptedBuff_s {
   size_t cipher_len;
 } EncryptedBuff_t ;
 
+typedef const EVP_CIPHER* (*cipher_func_t)(void);
+typedef const EVP_MD* (*hash_func_t)(void);
 int pkcs5_keyed_hash(const char *master,
                      int  master_size,
                      unsigned char *key,
@@ -33,5 +36,22 @@ int hash_not_keyed(const unsigned char *plain,
                   ,unsigned char *hash
                   ,unsigned int *hash_size);
 
+typedef enum { 
+  AES_256_CTR,
+  AES_192_CTR,
+  AES_128_CTR,
+  CHACHA20,
+  CAMELLIA_256_CTR,
+  CAMELLIA_192_CTR,
+  CAMELLIA_128_CTR
+} Encryption_options_idx;
 
-#endif
+typedef enum { 
+  SHA_512,
+  SHA_384,
+  SHA_256
+} hashing_options_idx;
+
+extern cipher_func_t encryption_options_fetchers[];
+extern hash_func_t hashing_options_fetchers[];
+#endif /* ifndef ENRYPTION_H */

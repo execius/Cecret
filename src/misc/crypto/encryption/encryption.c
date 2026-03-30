@@ -1,5 +1,21 @@
 #include "encryption.h" 
 
+cipher_func_t encryption_options_fetchers[] = {
+[AES_256_CTR] = EVP_aes_256_ctr,
+[AES_192_CTR] = EVP_aes_192_ctr,
+[AES_128_CTR] = EVP_aes_128_ctr,
+[CHACHA20]    = EVP_chacha20,
+[CAMELLIA_256_CTR] = EVP_camellia_256_ctr,
+[CAMELLIA_192_CTR] = EVP_camellia_192_ctr,
+[CAMELLIA_128_CTR] = EVP_camellia_128_ctr
+};
+
+hash_func_t hashing_options_fetchers[] = {
+[SHA_512] = EVP_sha512,
+[SHA_384] = EVP_sha384,
+[SHA_256] = EVP_sha256
+};
+
 int pkcs5_keyed_hash(const char *master,
                      int  master_size,
                      unsigned char *key,

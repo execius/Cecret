@@ -4,8 +4,8 @@
 #include "encryption.h"
 
 typedef struct UserConfig_s {
-  EncryptionOption_t encryption_option;
-  HashOption_t hashing_option;
-  HashOption_t hashing_option_keyed;
+  Encryption_options_idx encryption_option_idx;
+  hashing_options_idx hashing_option_idx;
+  hashing_options_idx keyed_hashing_option_idx;
 } UserConfig_t;  
 #endif

@@ -16,45 +16,60 @@ int InitUser(user_t **user,
                         "cannot allocate user");
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG((strlen(username) >= STRMAX),
-                               1,
-                               LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-                               "username lenght is larger than string lenght limit",
-                               failure);
-  
-  ERROR_CHECK_SUCCESS_GOTO_LOG((strlen((const char *)password) >= STRMAX),
-                               1,
-                               LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-                               "password lenght is larger than string lenght limit",
-                               failure);
-  ERROR_CHECK_SUCCESS_GOTO_LOG((snprintf((*user)->username,
-                                         STRMAX-1, "%s",username) > 0),
-                               1,
-                               ERROR_STDLIB_FAILURE,
-                               "failed to copy username into user struct",
-                               failure);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(RAND_bytes((*user)->enc_salt,
-                                          userconfig.hashing_option.salt_size),
-                               LIBSSL_SUCCESS,
-                               ERROR_LIBSSL_FAILURE,
-                               "failed to hash password",
-                               failure);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (strlen(username) >= STRMAX),
+    1,
+    LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
+    "username lenght is larger than string lenght limit",
+    failure);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(RAND_bytes((*user)->hmac_salt,
-                                          userconfig.hashing_option.salt_size),
-                               LIBSSL_SUCCESS,
-                               ERROR_LIBSSL_FAILURE,
-                               "failed to hash password",
-                               failure);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(hash_not_keyed(password,
-                                              strlen((const char *)password),
-                                              (userconfig.hashing_option).digest,
-                                              (*user)->hashed_pass,
-                                              NULL),
-                               ERROR_SUCCESS,
-                               ERROR_LIBSSL_FAILURE,
-                               "failed to hash password",
-                               failure);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (strlen((const char *)password) >= STRMAX),
+    1,
+    LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
+    "password lenght is larger than string lenght limit",
+    failure);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (snprintf((*user)->username,
+              STRMAX-1, "%s",username) > 0),
+    1,
+    ERROR_STDLIB_FAILURE,
+    "failed to copy username into user struct",
+    failure);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    RAND_bytes((*user)->enc_salt,
+      EVP_MD_block_size(hashing_options_fetchers[userconfig.hashing_option_idx]())),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to generate encryption salt",
+    failure);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    RAND_bytes(
+      (*user)->hmac_salt,
+      /*note : i use block size as also salt size , so there's that*/
+      EVP_MD_block_size(hashing_options_fetchers[userconfig.hashing_option_idx]())),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to generate hmac salt",
+    failure);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    hash_not_keyed(
+      password,
+      strlen((const char *)password),
+      hashing_options_fetchers[userconfig.hashing_option_idx](),
+      (*user)->hashed_pass,
+      NULL),
+    ERROR_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to hash password",
+    failure);
 
   memcpy(&(*user)->userconf,&userconfig,sizeof(UserConfig_t));
   return ERROR_SUCCESS;
