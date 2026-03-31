@@ -4,8 +4,8 @@
 #include "globalconfig.h"
 #include "user.h"
 
-int opendb(sqlite3 **db,const char *path);
-int closedb(sqlite3 *db);
+int OpenDb(sqlite3 **db,const char *path);
+int CloseDb(sqlite3 *db);
 int make_master_db(void);
 int make_user_db(user_t *user);
 

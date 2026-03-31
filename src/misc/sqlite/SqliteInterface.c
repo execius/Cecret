@@ -2,7 +2,7 @@
 
 
 
-int opendb(sqlite3 **db,const char *path){
+int OpenDb(sqlite3 **db,const char *path){
 
   ERROR_CHECK_NULL_LOG(path,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
@@ -29,7 +29,7 @@ int make_master_db(void){
 
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-  (opendb(&master,master_db_filepath)),
+  (OpenDb(&master,master_db_filepath)),
   ERROR_SUCCESS,
   ERROR_CANNOT_OPEN_DB,
   "cannot open db",
@@ -55,9 +55,16 @@ failure_sqlite:
   return ERROR_SQLITE_FAILURE;
 }
 int make_user_db(user_t *user){
-  char *err = NULL;
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  char *err = NULL , *username = NULL;
   char *user_db_filepath = NULL;
   sqlite3 *user_db;
+    ERROR_CHECK_SUCCESS_LOG(
+    (UserGetUsername(user,&username)),
+    ERROR_SUCCESS,
+    ERROR_USER_GET_USERNAME,
+    "failed to initialize user db path");
+
   MALLOC_CHECK_NULL_LOG(user_db_filepath,3*STRMAX,ERROR_MEMORY_ALLOCATION,
                         "cannot allocate user db file path");
 
@@ -66,8 +73,8 @@ int make_user_db(user_t *user){
               3*STRMAX-1,
               "%s/%s/%s%s",
               globalconf->master_db_dir_path,
-              user->username,
-              user->username,
+              username,
+              username,
               ".db")
     > 0),
     1,
@@ -77,7 +84,7 @@ int make_user_db(user_t *user){
 
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-  (opendb(&user_db,user_db_filepath)),
+  (OpenDb(&user_db,user_db_filepath)),
   ERROR_SUCCESS,
   ERROR_CANNOT_OPEN_DB,
   "cannot open user db",
@@ -117,7 +124,7 @@ failure_sqlite:
 
 }
 
-int closedb(sqlite3 *db){
+int CloseDb(sqlite3 *db){
 
   ERROR_CHECK_NULL_LOG(db,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   sqlite3_close(db);

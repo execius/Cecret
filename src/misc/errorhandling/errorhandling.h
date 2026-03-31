@@ -49,8 +49,12 @@ enum ERROR_ErrorCodes {
   ERROR_USER_INIT = -304,
   ERROR_CANNOT_OPEN_DB = -305,
   ERROR_BUF_OVERFLOW = -306,
-  ERROR_HASH_FAILED = -307
+  ERROR_HASH_FAILED = -307,
+  ERROR_USER_GET_USERNAME = -308,
+  ERROR_LIBSTR_FAILURE = -309,
+  ERROR_LEN_VAR_LARGER_THAN_STRMAX = -310
 };
+
 
 /*expects a non null [errstct] ideally you'd 
  * declare a ErrorStruct_t* and reference it */

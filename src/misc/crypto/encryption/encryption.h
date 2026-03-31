@@ -4,21 +4,19 @@
 
 #include "includes.h"
 
-typedef struct EncryptionOption_s {
-  const EVP_CIPHER *(*EncryptionScheme)(void);
-  size_t key_size;
-  size_t iv_size;
-} EncryptionOption_t ;
+typedef struct ByteBuff_s  ByteBuff_t ;
+int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len);
+int DestroyByteBuff(ByteBuff_t *bytebuff);
+int DestroyByteBuff_Unsafe(ByteBuff_t *bytebuff);
+int DupByteBuff(ByteBuff_t **dst,ByteBuff_t *src);
 
-typedef struct HashOption_s {
-  const EVP_MD *digest;
-  unsigned int key_size;
-  unsigned int salt_size;
-} HashOption_t ;
-typedef struct EncryptedBuff_s {
-  char cipher[STRMAX];
-  size_t cipher_len;
-} EncryptedBuff_t ;
+enum BUFF_ErrorCodes {
+  ERROR_BUFFDUP_FAILURE = -600,
+  ERROR_BUFFINIT_FAILURE = -601,
+};
+
+
+
 
 typedef const EVP_CIPHER* (*cipher_func_t)(void);
 typedef const EVP_MD* (*hash_func_t)(void);
