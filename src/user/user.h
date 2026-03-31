@@ -3,6 +3,7 @@
 #include "includes.h" 
 #include "globalconfig.h"
 #include "usersconfig.h"
+#include "bytebuffer.h" 
 #include "encryption.h"
 
 typedef struct user_s user_t;
@@ -30,5 +31,12 @@ int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt);
 int UserGetHashedPass(user_t *user,ByteBuff_t **hashed_pass);
 int UserGetDbPath(user_t *user, char **user_db_path);
 int UserGetUserConf(user_t *user,UserConfig_t **userconf);
+
+enum  UserErrors
+{ 
+  ERROR_USER_INIT = - 3000,
+  ERROR_USER_GET_USERNAME = -3001,
+  ERROR_GETUSRCONF_FAILURE = -3002
+};
 
 #endif

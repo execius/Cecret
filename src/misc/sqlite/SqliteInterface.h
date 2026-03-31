@@ -8,6 +8,10 @@ int OpenDb(sqlite3 **db,const char *path);
 int CloseDb(sqlite3 *db);
 int make_master_db(void);
 int make_user_db(user_t *user);
+enum SqliteInterErrors{
+  ERROR_CANNOT_OPEN_DB = -4000,
+  ERROR_SQLITE_FAILURE = -4001,
+};
 
   const char *master_db_template =
     "\
@@ -47,4 +51,6 @@ encryption_algorithm_enum INTEGER ,\
 hashing_algorithm_enum INTEGER ,\
 \
 keyed_hashing_algorithm_enum INTEGER );WITHOUT ROWID";
+
+
 #endif /* ifndef MACRO */

@@ -1,22 +1,8 @@
 #ifndef ENCRYPTION_H
 #define ENCRYPTION_H
 
-
 #include "includes.h"
-
-typedef struct ByteBuff_s  ByteBuff_t ;
-int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len);
-int DestroyByteBuff(ByteBuff_t *bytebuff);
-int DestroyByteBuff_Unsafe(ByteBuff_t *bytebuff);
-int DupByteBuff(ByteBuff_t **dst,ByteBuff_t *src);
-
-enum BUFF_ErrorCodes {
-  ERROR_BUFFDUP_FAILURE = -600,
-  ERROR_BUFFINIT_FAILURE = -601,
-};
-
-
-
+#include "bytebuffer.h" 
 
 typedef const EVP_CIPHER* (*cipher_func_t)(void);
 typedef const EVP_MD* (*hash_func_t)(void);
@@ -49,6 +35,10 @@ typedef enum {
   SHA_384,
   SHA_256
 } hashing_options_idx;
+enum CryptoErrors{
+  ERROR_HASH_FAILED = -5000,
+
+};
 
 extern cipher_func_t encryption_options_fetchers[];
 extern hash_func_t hashing_options_fetchers[];
