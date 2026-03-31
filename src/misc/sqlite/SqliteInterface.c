@@ -16,10 +16,8 @@ int opendb(sqlite3 **db,const char *path){
 }
 int make_master_db(void){
   char *err = NULL;
-  char *master_db_filepath = NULL;
+  char master_db_filepath[3*STRMAX];
   sqlite3 *master;
-  MALLOC_CHECK_NULL_LOG(master_db_filepath,3*STRMAX,ERROR_MEMORY_ALLOCATION,
-                        "cannot allocate master db file path");
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
   (snprintf(master_db_filepath,
@@ -48,15 +46,12 @@ int make_master_db(void){
     err,
     failure_sqlite);
 
-  free(master_db_filepath);
   return ERROR_SUCCESS;
 failure_stdlib:
-  free(master_db_filepath);
-  free(err);
+  if (err) free(err);
   return ERROR_STDLIB_FAILURE;
 failure_sqlite:
-  free(master_db_filepath);
-  free(err);
+  if (err) free(err);
   return ERROR_SQLITE_FAILURE;
 }
 int make_user_db(user_t *user){

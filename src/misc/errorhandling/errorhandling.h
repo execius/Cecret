@@ -48,7 +48,8 @@ enum ERROR_ErrorCodes {
   ERROR_SQLITE_FAILURE = -303,
   ERROR_USER_INIT = -304,
   ERROR_CANNOT_OPEN_DB = -305,
-  ERROR_BUF_OVERFLOW = -306
+  ERROR_BUF_OVERFLOW = -306,
+  ERROR_HASH_FAILED = -307
 };
 
 /*expects a non null [errstct] ideally you'd 

@@ -3,7 +3,6 @@
 
 
 
-/*the password MUST be null terminated !*/
 int InitUser(user_t **user,
              const char *username
              ,const unsigned char *hashed_pass
@@ -72,67 +71,117 @@ int InitUser(user_t **user,
 
   return ERROR_SUCCESS;
 failure:
-  OPENSSL_cleanse((*user)->hashed_pass, STRMAX);
-  OPENSSL_cleanse((*user)->iv, STRMAX);
-  OPENSSL_cleanse((*user)->hmac_salt, STRMAX);
+  OPENSSL_cleanse(*user, sizeof(user_t));
   free(*user);
   return ERROR_USER_INIT;
 }
 
-int CreateUser(void){
-
-  // ERROR_CHECK_SUCCESS_GOTO_LOG(
-  //   RAND_bytes((*user)->iv,
-  //     EVP_CIPHER_iv_length(encryption_options_fetchers[userconfig.encryption_option_idx]())),
-  //   LIBSSL_SUCCESS,
-  //   ERROR_LIBSSL_FAILURE,
-  //   "failed to generate encryption IV",
-  //   failure);
-  //
-  //
-  // ERROR_CHECK_SUCCESS_GOTO_LOG(
-  //   RAND_bytes(
-  //     (*user)->hmac_salt,
-  //     /*note : i use block size as also salt size , so there's that*/
-  //     EVP_MD_block_size(hashing_options_fetchers[userconfig.hashing_option_idx]())),
-  //   LIBSSL_SUCCESS,
-  //   ERROR_LIBSSL_FAILURE,
-  //   "failed to generate hmac salt",
-  //   failure);
-  //
-  // ERROR_CHECK_SUCCESS_GOTO_LOG(
-  //   hash_not_keyed(
-  //     password,
-  //     strlen((const char *)password),
-  //     hashing_options_fetchers[userconfig.hashing_option_idx](),
-  //     (*user)->hashed_pass,
-  //     NULL),
-  //   ERROR_SUCCESS,
-  //   ERROR_LIBSSL_FAILURE,
-  //   "failed to hash password",
-  //   failure);
 
 
-  // ERROR_CHECK_SUCCESS_GOTO_LOG(
-  //   (snprintf(
-  //     (*user)->user_db_path,
-  //     2*STRMAX-1, "%s/%s/%s%s",
-  //     globalconf->master_db_dir_path,
-  //     "users",username,
-  //     ".db")
-  //   > 0),
-  //   1,
-  //   ERROR_STDLIB_FAILURE,
-  //   "failed to initialize user db path",
-  //   failure);
-    return ERROR_SUCCESS;
 
+int CreateUser(user_t **user
+    ,const char *username
+    ,const unsigned char *password
+    ,UserConfig_t userconfig)
+
+{
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  unsigned char iv[STRMAX];
+  unsigned char hmac_salt[STRMAX];
+  char user_db_path[3*STRMAX];
+  unsigned char hashed_pass[STRMAX];
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    RAND_bytes(iv,
+      EVP_CIPHER_iv_length(encryption_options_fetchers[userconfig.encryption_option_idx]())),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to generate encryption IV",
+    failure_libssl);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    RAND_bytes(
+      hmac_salt,
+      /*note : i use block size as also salt size , so there's that*/
+      EVP_MD_block_size(hashing_options_fetchers[userconfig.hashing_option_idx]())),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to generate hmac salt",
+    failure_libssl);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    hash_not_keyed(
+      password,
+      strlen((const char *)password),
+      hashing_options_fetchers[userconfig.hashing_option_idx](),
+      hashed_pass,
+      NULL),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash password",
+    failure_hash);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (snprintf(
+      user_db_path,
+      3*STRMAX-1, "%s/%s/%s%s",
+      globalconf->master_db_dir_path,
+      "users",username,
+      ".db")
+    > 0),
+    1,
+    ERROR_STDLIB_FAILURE,
+    "failed to initialize user db path",
+    failure_stdlib);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (InitUser(
+      user,
+      username,
+      hashed_pass,
+      iv,
+      hmac_salt,
+      user_db_path,
+      userconfig
+      )
+    > 0),
+    1,
+    ERROR_USER_INIT,
+    "failed to initialize user db path",
+    failure_init);
+
+  OPENSSL_cleanse(iv, sizeof(iv));
+  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
+  return ERROR_SUCCESS;
+failure_stdlib:
+  OPENSSL_cleanse(iv, sizeof(iv));
+  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
+  return ERROR_STDLIB_FAILURE;
+failure_libssl:
+  OPENSSL_cleanse(iv, sizeof(iv));
+  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
+  return ERROR_LIBSSL_FAILURE;
+failure_init:
+  OPENSSL_cleanse(iv, sizeof(iv));
+  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
+  return ERROR_USER_INIT;
+failure_hash:
+  OPENSSL_cleanse(iv, sizeof(iv));
+  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
+  return ERROR_HASH_FAILED;
 }
 int DestroyUser(user_t *user){
 ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  OPENSSL_cleanse((user)->hashed_pass, STRMAX);
-  OPENSSL_cleanse((user)->iv, STRMAX);
-  OPENSSL_cleanse((user)->hmac_salt, STRMAX);
+  OPENSSL_cleanse(user, sizeof(user_t));
   free(user);
   return ERROR_SUCCESS;
 }
