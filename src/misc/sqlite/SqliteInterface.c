@@ -17,20 +17,40 @@ int OpenDb(sqlite3 **db,const char *path){
 
 int make_master_db(void){
   char *err = NULL;
-  char master_db_filepath[3*STRMAX];
+  char *master_db_filepath_str = NULL;
+  ByteBuff_t *master_db_filepath = NULL;
+  int rc = 0;
   sqlite3 *master;
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-  (snprintf(master_db_filepath,
-            3*STRMAX-1, "%s/%s",globalconf->master_db_dir_path,"master.db") > 0),
-  1,
-  ERROR_STDLIB_FAILURE,
-  "failed to initialize user db path",
-  failure_stdlib);
+      (DupByteBuff(&master_db_filepath,
+                    globalconf->master_db_dir_path)
+       ),
+      ERROR_SUCCESS,
+      ERROR_APPENDBUFF_FAILED,
+      "failed to duplicate byte buff while building master db path",
+      failure_dupbuff);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (AppendStrByteBuff(master_db_filepath,"/master.db")
+       ),
+      ERROR_SUCCESS,
+      ERROR_APPENDSTRBUFF_FAILED,
+      "failed to append '/master.db' while building master db path",
+      failure_appstrbuf);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (GetBuffByteBuff_NullTerminated(master_db_filepath
+                                      ,(unsigned char **)&master_db_filepath_str)
+       ),
+      ERROR_SUCCESS,
+      ERROR_APPENDSTRBUFF_FAILED,
+      "failed to get master db path null terminated str from byte buff",
+      failure_getbuffbytebuff_nl);
+  
 
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-  (OpenDb(&master,master_db_filepath)),
+  (OpenDb(&master,master_db_filepath_str)),
   ERROR_SUCCESS,
   ERROR_CANNOT_OPEN_DB,
   "cannot open db",
@@ -47,49 +67,64 @@ int make_master_db(void){
     err,
     failure_sqlite);
 
-  return ERROR_SUCCESS;
-failure_stdlib:
+cleanup:
+  if (master_db_filepath) DestroyByteBuff_Secure(master_db_filepath);
+  if (master_db_filepath_str){ 
+    OPENSSL_cleanse(master_db_filepath_str,strlen(master_db_filepath_str));
+    free(master_db_filepath_str);
+    }
   if (err) free(err);
-  return ERROR_STDLIB_FAILURE;
+  return rc;
 failure_sqlite:
-  if (err) free(err);
-  return ERROR_SQLITE_FAILURE;
+  rc = ERROR_SQLITE_FAILURE;
+  goto cleanup;
+failure_appstrbuf:
+  rc = ERROR_APPENDSTRBUFF_FAILED;
+  goto cleanup;
+failure_dupbuff:
+  rc = ERROR_BUFFDUP_FAILURE;
+  goto cleanup ;
+
+failure_getbuffbytebuff_nl:
+  rc = ERROR_GETBUFF_NL_FAILURE;
+  goto cleanup ;
+
 }
 int make_user_db(user_t *user){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  char *err = NULL , *username = NULL;
-  char *user_db_filepath = NULL;
+  char *err = NULL  ;
+  ByteBuff_t *username = NULL;
+  ByteBuff_t *user_db_filepath = NULL;
+  char *user_db_filepath_str = NULL;
   sqlite3 *user_db;
-    ERROR_CHECK_SUCCESS_LOG(
-    (UserGetUsername(user,&username)),
-    ERROR_SUCCESS,
-    ERROR_USER_GET_USERNAME,
-    "failed to initialize user db path");
+  int rc = 0;
+  ERROR_CHECK_SUCCESS_LOG(
+      (UserGetUsername(user,&username)),
+      ERROR_SUCCESS,
+      ERROR_USER_GET_USERNAME,
+      "failed to get username from user");
 
-  MALLOC_CHECK_NULL_LOG(user_db_filepath,3*STRMAX,ERROR_MEMORY_ALLOCATION,
-                        "cannot allocate user db file path");
 
+  ERROR_CHECK_SUCCESS_LOG(
+      (UserGetDbPath(user,&user_db_filepath)),
+      ERROR_SUCCESS,
+      ERROR_USER_GET_DBPATH,
+      "failed to get user db filepath from user");
+  
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-    (snprintf(user_db_filepath,
-              3*STRMAX-1,
-              "%s/%s/%s%s",
-              globalconf->master_db_dir_path,
-              username,
-              username,
-              ".db")
-    > 0),
-    1,
-    ERROR_STDLIB_FAILURE,
-    "failed to initialize user db path",
-    failure_stdlib);
-
-
+      (GetBuffByteBuff_NullTerminated(user_db_filepath
+                                      ,(unsigned char **)&user_db_filepath_str)
+       ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_NL_FAILURE,
+      "failed to get user db path null terminated str from byte buff",
+      failure_getbuffbytebuff_nl);
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-  (OpenDb(&user_db,user_db_filepath)),
-  ERROR_SUCCESS,
-  ERROR_CANNOT_OPEN_DB,
-  "cannot open user db",
-  failure_sqlite);
+      (OpenDb(&user_db,user_db_filepath_str)),
+      ERROR_SUCCESS,
+      ERROR_CANNOT_OPEN_DB,
+      "cannot open user db",
+      failure_sqlite);
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
     (sqlite3_exec(user_db,
@@ -112,17 +147,25 @@ int make_user_db(user_t *user){
     ERROR_SQLITE_FAILURE,
     err,
     failure_sqlite);
-  free(user_db_filepath);
-  return ERROR_SUCCESS;
-failure_stdlib:
-  free(user_db_filepath);
-  free(err);
-  return ERROR_STDLIB_FAILURE;
-failure_sqlite:
-  free(user_db_filepath);
-  free(err);
-  return ERROR_SQLITE_FAILURE;
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+cleanup:
+  if (username) DestroyByteBuff_Secure(username);
+  if (user_db_filepath) DestroyByteBuff_Secure(user_db_filepath);
+  if (user_db_filepath_str) {
+    OPENSSL_cleanse(user_db_filepath_str,strlen(user_db_filepath_str));
+    free(user_db_filepath_str);
+    }
+  if (err) free(err);
+  return rc;
 
+failure_getbuffbytebuff_nl:
+  rc = ERROR_GETBUFF_NL_FAILURE;
+  goto cleanup ;
+
+failure_sqlite:
+  rc = ERROR_SQLITE_FAILURE;
+  goto cleanup;
 }
 
 int CloseDb(sqlite3 *db){

@@ -230,13 +230,13 @@ failure_initacc:
 cleanup:
   OPENSSL_cleanse(iv,iv_len);
   if (iv) free(iv);
-  if (iv_buf) DestroyByteBuff(iv_buf);
+  if (iv_buf) DestroyByteBuff_Secure(iv_buf);
   if (userconf) free(userconf);
   return rc;
 }
 int DestroyAccount(Account_t *account){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  DestroyByteBuff(account->iv);
+  DestroyByteBuff_Secure(account->iv);
   OPENSSL_cleanse(account, sizeof(Account_t));
   free(account);
   return ERROR_SUCCESS;

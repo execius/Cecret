@@ -7,8 +7,8 @@ typedef struct GlobalConf_s {
   uint16_t config_version;
   
   /*for easy and configurable access*/
-  char master_db_dir_path[STRMAX];
-  char backup_dir_path[STRMAX];
+  ByteBuff_t *master_db_dir_path;
+  ByteBuff_t *backup_dir_path;
 
   /*iterations for key derivation / password hashing 
    * this is the basis of the password security model 
