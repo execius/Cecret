@@ -328,7 +328,7 @@ int UserGetUsername(user_t *user,ByteBuff_t **username){
       (DupByteBuff(username,user->username)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff");
+      "failed to duplicate username buff");
   return ERROR_SUCCESS;
 }
 int UserGetHmacSalt(user_t *user,ByteBuff_t **hmac_salt){
@@ -349,7 +349,7 @@ int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt){
       (DupByteBuff(password_salt,user->password_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff");
+      "failed to duplicate password_salt buff");
 
   return ERROR_SUCCESS;
 }
@@ -361,7 +361,7 @@ int UserGetHashedPass(user_t *user,ByteBuff_t **hashed_pass){
       (DupByteBuff(hashed_pass,user->hashed_pass)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff");
+      "failed to duplicate hashed pass buff");
 
     return ERROR_SUCCESS;
 
@@ -374,7 +374,7 @@ int UserGetDbPath(user_t *user, ByteBuff_t **user_db_path){
       (DupByteBuff(user_db_path,user->user_db_path)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff");
+      "failed to duplicate user db path buff");
   return ERROR_SUCCESS;
 }
 

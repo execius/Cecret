@@ -123,7 +123,7 @@ int InitAccount(Account_t **account
       (DupByteBuff(&(*account)->iv,iv)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to copy user user_db_path into user struct",
+      "failed to copy user iv into user struct",
       failure_dupbuff);
 
   return ERROR_SUCCESS;
