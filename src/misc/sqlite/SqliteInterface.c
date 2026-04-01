@@ -14,6 +14,7 @@ int OpenDb(sqlite3 **db,const char *path){
 
   return ERROR_SUCCESS;
 }
+
 int make_master_db(void){
   char *err = NULL;
   char master_db_filepath[3*STRMAX];
