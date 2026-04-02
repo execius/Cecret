@@ -46,52 +46,57 @@ int InitAccount(Account_t **account
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(*account,sizeof(Account_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate user");
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username,username)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate username bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->password,password)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate password bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->email,email)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate email bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->platform,platform)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate platform bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->note,note)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate note bytebuffer",
-      failure_dupbuff);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->iv,iv)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate iv bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
 
 
-  return ERROR_SUCCESS;
-failure_dupbuff:
-  rc = ERROR_BUFFDUP_FAILURE;
+
+  rc = ERROR_SUCCESS;
   goto cleanup;
 cleanup:
   if (*account){
@@ -118,12 +123,13 @@ int CreateAccount(Account_t **account
   UserConfig_t *userconf =  NULL;
   unsigned char *iv = NULL;
   int rc = 0 , iv_len = 0;
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetUserConf(user,&userconf)),
       ERROR_SUCCESS,
       ERROR_GETUSRCONF_FAILURE,
       "error getting user config struct",
-      failure_getusrconf);
+      rc,
+      cleanup);
 
 
   iv_len= EVP_CIPHER_get_iv_length(
@@ -134,7 +140,7 @@ int CreateAccount(Account_t **account
       ERROR_MEMORY_ALLOCATION,
       "error allocating memory for account IV");
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (RAND_bytes(
                   iv,
                   iv_len
@@ -142,22 +148,24 @@ int CreateAccount(Account_t **account
       LIBSSL_SUCCESS,
       ERROR_LIBSSL_FAILURE,
       "failed to generate hmac salt",
-      failure_libssl);
+      rc,
+      cleanup);
 
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&iv_buf,
                     iv,
                     (size_t)iv_len)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for hashed pass",
-      failure_initbuff);
+      rc,
+      cleanup);
 
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitAccount(account,
                    username,
                    password,
@@ -168,21 +176,10 @@ int CreateAccount(Account_t **account
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize account",
-      failure_initacc);
+      rc,
+      cleanup);
 
   rc = ERROR_SUCCESS;
-  goto cleanup;
-failure_getusrconf:
-  rc = ERROR_GETUSRCONF_FAILURE;
-  goto cleanup;
-failure_libssl:
-  rc = ERROR_LIBSSL_FAILURE;
-  goto cleanup;
-failure_initbuff:
-  rc = ERROR_BUFFINIT_FAILURE;
-  goto cleanup;
-failure_initacc:
-  rc = ERROR_ACCOUNT_INNIT_FAILURE;
   goto cleanup;
 cleanup:
   OPENSSL_cleanse(iv,iv_len);
@@ -239,71 +236,74 @@ int InitEncryptedAccount(EncryptedAccount_t **account
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(*account,sizeof(EncryptedAccount_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate user");
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username_cipher,username_cipher)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate username_cipher bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->password_cipher,password_cipher)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate password_cipher bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->email_cipher,email_cipher)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate email_cipher bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->platform_cipher,platform_cipher)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate platform_cipher bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->note_cipher,note_cipher)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate note_cipher bytebuffer",
-      failure_dupbuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->iv,iv)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate iv bytebuffer",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username_hash,username_hash)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate username_hash bytebuffer",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->platform_hash,platform_hash)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate platform_hash bytebuffer",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->email_hash,email_hash)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate email_hash bytebuffer",
-      failure_dupbuff);
-  return ERROR_SUCCESS;
-failure_dupbuff:
-  rc = ERROR_BUFFDUP_FAILURE;
+      rc,cleanup);
+  rc = ERROR_SUCCESS;
   goto cleanup;
 cleanup:
   if (*account){
@@ -332,7 +332,7 @@ int EncryptAccount(Account_t *account
   // ByteBuff_t *platform_hash;
   // ByteBuff_t *email_hash;
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->username,
                        account->iv,
                        &username_cipher,
@@ -340,9 +340,10 @@ int EncryptAccount(Account_t *account
       ERROR_SUCCESS,
       ERROR_ENCRYPTBYTEBUFF_FAILURE,
       "failed to encrypt username byte buffer",
-      failure_encbytebuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->password,
                        account->iv,
                        &password_cipher,
@@ -350,9 +351,10 @@ int EncryptAccount(Account_t *account
       ERROR_SUCCESS,
       ERROR_ENCRYPTBYTEBUFF_FAILURE,
       "failed to encrypt password byte buffer",
-      failure_encbytebuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->email,
                        account->iv,
                        &email_cipher,
@@ -360,9 +362,10 @@ int EncryptAccount(Account_t *account
       ERROR_SUCCESS,
       ERROR_ENCRYPTBYTEBUFF_FAILURE,
       "failed to encrypt email byte buffer",
-      failure_encbytebuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->platform,
                        account->iv,
                        &platform_cipher,
@@ -370,9 +373,10 @@ int EncryptAccount(Account_t *account
       ERROR_SUCCESS,
       ERROR_ENCRYPTBYTEBUFF_FAILURE,
       "failed to encrypt platform byte buffer",
-      failure_encbytebuff);
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->note,
                        account->iv,
                        &note_cipher,
@@ -380,9 +384,10 @@ int EncryptAccount(Account_t *account
       ERROR_SUCCESS,
       ERROR_ENCRYPTBYTEBUFF_FAILURE,
       "failed to encrypt note byte buffer",
-      failure_encbytebuff);
+      rc,
+      cleanup);
 
-  // ERROR_CHECK_SUCCESS_GOTO_LOG(
+  // ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   //   (pkcs5_keyed_hash(
   //     password_str,
   //     password_len,
@@ -397,6 +402,7 @@ int EncryptAccount(Account_t *account
   //   "failed to derive encryption key",
   //   failure_hash);
   rc = ERROR_SUCCESS;
+  goto cleanup;
 
 cleanup:
   if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
@@ -405,7 +411,4 @@ cleanup:
   if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
   if (note_cipher) DestroyByteBuff_Secure(note_cipher);
   return rc;
-failure_encbytebuff:
-  rc = ERROR_ENCRYPTBYTEBUFF_FAILURE;
-  goto cleanup;
 }

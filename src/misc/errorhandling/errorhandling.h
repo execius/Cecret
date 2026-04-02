@@ -89,35 +89,75 @@ int Error_SetLogOff(void);
 
 int Error_LogError(const ErrorStruct_t *error_stct);
 
+
+
+/*to avoid logging code repetition in the following code*/
+static inline void Error_LogHelper(int errcode, const char *desc,
+    size_t line, const char *func, const char *file)
+{
+  ErrorStruct_t *errstct;
+  if (Error_InitErrorStruct(&errstct,
+        errcode,
+        line,
+        func,
+        file,
+        desc) == ERROR_SUCCESS) 
+  {
+    Error_LogError(errstct);
+    Error_DestroyErrorStruct(errstct);
+  }
+}
+
 /*checks if the expression  is successfull , if not it returns an error code */
 #define ERROR_CHECK_SUCCESS_RET(exp,successcode,errcode) \
 do {\
-  if(successcode != (exp)){\
+  if((successcode) != (exp)){\
     return errcode;\
   }\
 } while (0)
 
 
-/*checks if the expression  is successfull , if not it returns an error code */
-#define ERROR_CHECK_SUCCESS_GOTO_LOG(exp,successcode,errcode,desc,label) \
-do {\
-  if(successcode != (exp)){\
-    ErrorStruct_t *errstct;\
-    Error_InitErrorStruct(&errstct,errcode,__LINE__,__func__,__FILE__,desc);\
-    Error_LogError(errstct);\
-    Error_DestroyErrorStruct(errstct);\
-    goto label;\
-  }\
-} while (0)
 /*like ERROR_CHECK_SUCCESS_RET but logs*/
 #define ERROR_CHECK_SUCCESS_LOG(exp,successcode,errcode,desc) \
 do {\
-  if(successcode != (exp)){\
-    ErrorStruct_t *errstct;\
-    Error_InitErrorStruct(&errstct,errcode,__LINE__,__func__,__FILE__,desc);\
-    Error_LogError(errstct);\
-    Error_DestroyErrorStruct(errstct);\
+  if((successcode) != (exp)){\
+    Error_LogHelper(errcode, desc, __LINE__, __func__, __FILE__);\
     return errcode;\
+  }\
+} while (0)
+
+/*checks if the expression  is successfull , if not it does goto label;*/
+#define ERROR_CHECK_SUCCESS_GOTO(exp,successcode,label) \
+do {\
+  if((successcode) != (exp)){\
+    goto label;\
+  }\
+} while (0)
+/*like ERROR_CHECK_SUCCESS_GOTO but logs*/
+#define ERROR_CHECK_SUCCESS_GOTO_LOG(exp,successcode,errcode,desc,label) \
+do {\
+  if((successcode) != (exp)){\
+    Error_LogHelper(errcode, desc, __LINE__, __func__, __FILE__);\
+    goto label;\
+  }\
+} while (0)
+/*checks if the expression  is successfull , if not it :
+ * sets rc to errorcode
+ * does goto label;*/
+#define ERROR_CHECK_SUCCESS_SET_RC_GOTO(exp,successcode,errcode,rc,label) \
+do {\
+  if((successcode) != (exp)){\
+    (rc) = (errcode);\
+    goto label;\
+  }\
+} while (0)
+/*like ERROR_CHECK_SUCCESS_SET_RC_GOTO but logs*/
+#define ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(exp,successcode,errcode,desc,rc,label) \
+do {\
+  if((successcode) != (exp)){\
+    Error_LogHelper(errcode, desc, __LINE__, __func__, __FILE__);\
+    (rc) = (errcode);\
+    goto label;\
   }\
 } while (0)
 
@@ -130,14 +170,11 @@ do {\
 } while (0)
 
 /*like ERROR_CHECK_NULL_RET but logs*/
-#define ERROR_CHECK_NULL_LOG(ptr,retval,desc) \
+#define ERROR_CHECK_NULL_LOG(ptr,errcode,desc) \
 do {\
   if(NULL == (ptr)){\
-    ErrorStruct_t *errstct;\
-    Error_InitErrorStruct(&errstct,retval,__LINE__,__func__,__FILE__,desc);\
-    Error_LogError(errstct);\
-    Error_DestroyErrorStruct(errstct);\
-    return retval;\
+    Error_LogHelper(errcode, desc, __LINE__, __func__, __FILE__);\
+    return errcode;\
   }\
 } while (0)
 
@@ -145,8 +182,8 @@ do {\
  * the allocation is successfull*/
 #define MALLOC_CHECK_NULL_RET(ptr,size,MemAllocError) \
 do {\
-  ptr = malloc(size);\
-  if(NULL == ptr){\
+  (ptr) = malloc(size);\
+  if(NULL == (ptr)){\
     return MemAllocError;\
   }\
 } while (0)
@@ -154,12 +191,9 @@ do {\
 /*like MALLOC_CHECK_NULL_RET but logs*/
 #define MALLOC_CHECK_NULL_LOG(ptr,size,MemAllocError,desc) \
 do {\
-  ptr = malloc(size);\
-  if(NULL == ptr){\
-    ErrorStruct_t *errstct;\
-    Error_InitErrorStruct(&errstct,MemAllocError,__LINE__,__func__,__FILE__,desc);\
-    Error_LogError(errstct);\
-    Error_DestroyErrorStruct(errstct);\
+  (ptr) = malloc(size);\
+  if(NULL == (ptr)){\
+    Error_LogHelper(MemAllocError, desc, __LINE__, __func__, __FILE__);\
     return MemAllocError;\
   }\
 } while (0)

@@ -59,6 +59,7 @@ int hash_not_keyed(const unsigned char *plain,
   EVP_MD_CTX *ctx = EVP_MD_CTX_new(); 
   ERROR_CHECK_NULL_LOG(ctx,ERROR_LIBSSL_FAILURE,"context initialization failed");
 
+  int rc = 0;
   ERROR_CHECK_SUCCESS_LOG(
     
   (EVP_DigestInit_ex(
@@ -79,7 +80,7 @@ int hash_not_keyed(const unsigned char *plain,
     ERROR_LIBSSL_FAILURE,
     "digest update failed");
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (EVP_DigestFinal_ex(ctx,
                       hash,
                       hash_size)),
@@ -87,12 +88,13 @@ int hash_not_keyed(const unsigned char *plain,
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "digest final failed",
-    failure);
+    rc,cleanup);
+
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+cleanup:
   EVP_MD_CTX_free(ctx);
-  return ERROR_SUCCESS;
-failure:
-  EVP_MD_CTX_free(ctx);
-  return ERROR_LIBSSL_FAILURE;
+  return rc;
 
 }
 
@@ -116,9 +118,10 @@ int encrypt(const EVP_CIPHER *type,
 
   int block_size = EVP_CIPHER_block_size(type);
   int cipher_size_tmp = 0;
+  int rc = 0;
   *cipher_size = 0;
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (EVP_EncryptInit_ex(ctx,
                       type,
                       NULL,
@@ -128,9 +131,9 @@ int encrypt(const EVP_CIPHER *type,
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "encrypt init failed",
-    failure);
+    rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (EVP_EncryptUpdate(ctx,
                      cipher,
                      &cipher_size_tmp,
@@ -140,10 +143,10 @@ int encrypt(const EVP_CIPHER *type,
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "encrypt update failed",
-    failure);
+    rc,cleanup);
   *cipher_size += cipher_size_tmp;
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (EVP_EncryptFinal_ex(ctx,
                      cipher+*cipher_size,
                      &cipher_size_tmp)),
@@ -151,26 +154,22 @@ int encrypt(const EVP_CIPHER *type,
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "encrypt final failed",
-    failure);
+    rc,cleanup);
   *cipher_size += cipher_size_tmp;
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (plain_size < ((*cipher_size)+block_size)),
     1,
     ERROR_BUF_OVERFLOW,
     "cipher buffer overflowed",
-    overflow);
+    rc,cleanup);
 
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+cleanup:
   EVP_CIPHER_CTX_free(ctx);
-  return ERROR_SUCCESS;
-failure:
-  EVP_CIPHER_CTX_free(ctx);
-  return  ERROR_LIBSSL_FAILURE;
-
-overflow:
-  EVP_CIPHER_CTX_free(ctx);
-  return  ERROR_BUF_OVERFLOW;
+  return rc;
 
 }
 
@@ -211,22 +210,22 @@ int EncryptByteBuff(
   int cipher_max = 0;
   int rc = 0;
   ByteBuff_t *key = NULL;
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetUserConf(user
                        ,&userconfig)
       ),
       ERROR_SUCCESS,
       ERROR_GETUSRCONF_FAILURE,
       "failed to get userconfig from user",
-      failure_getusrconf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetLenByteBuff(plain
                        ,(size_t *)&plain_size)
       ),
       ERROR_SUCCESS,
       ERROR_GETLEN_FAILURE,
       "failed to get plain len from byte buff",
-      failure_getlenbytebuff);
+      rc,cleanup);
 
   /*+512 just in case*/
   cipher_max = plain_size +EVP_CIPHER_get_block_size(
@@ -237,44 +236,44 @@ int EncryptByteBuff(
       "cannot allocate for cipher str");
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetKey(user,
                        &key)), 
       ERROR_SUCCESS,
       ERROR_USER_GET_KEY,
       "error gettingn key from user ",
-      failure_usrgetkey);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetBuffByteBuff(key
                        ,(unsigned char **)&key_str)
       ),
       ERROR_SUCCESS,
       ERROR_GETBUFF_FAILURE,
       "failed to get key  str from byte buff",
-      failure_getbuffbytebuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetBuffByteBuff(iv
                        ,(unsigned char **)&iv_str)
       ),
       ERROR_SUCCESS,
       ERROR_GETBUFF_FAILURE,
       "failed to get iv  str from byte buff",
-      failure_getbuffbytebuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetBuffByteBuff(plain
                        ,(unsigned char **)&plain_str)
       ),
       ERROR_SUCCESS,
       ERROR_GETBUFF_FAILURE,
       "failed to get plain  str from byte buff",
-      failure_getbuffbytebuff);
+      rc,cleanup);
 
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (encrypt(encryption_options_fetchers[userconfig->encryption_option_idx]()
                ,key_str
                ,iv_str
@@ -286,10 +285,10 @@ int EncryptByteBuff(
       ERROR_SUCCESS,
       ERROR_ENCRYPTION_FAILURE,
       "failed to encrypt",
-      failure_encryption);
+      rc,cleanup);
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(cipher
                     ,cipher_str
                     ,(size_t)cipher_size)
@@ -297,46 +296,29 @@ int EncryptByteBuff(
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to get plain  str from byte buff",
-      failure_initbuff);
+      rc,cleanup);
 
   rc = ERROR_SUCCESS;
+  goto cleanup;
 cleanup:
   if (cipher_str) {
     OPENSSL_cleanse(cipher_str,strlen((const char *)cipher_str));
     free(cipher_str);
-    }
+  }
   if (plain_str) {
     OPENSSL_cleanse(plain_str,strlen((const char *)plain_str));
     free(plain_str);
-    }
+  }
   if (iv_str) {
     OPENSSL_cleanse(iv_str,strlen((const char *)iv_str));
     free(iv_str);
-    }
+  }
   if (userconfig) {
     OPENSSL_cleanse(userconfig,sizeof(UserConfig_t));
     free(userconfig);
-    }
+  }
   return rc;
 
-failure_initbuff:
-  rc = ERROR_BUFFINIT_FAILURE;
-  goto cleanup;
-failure_usrgetkey:
-  rc = ERROR_USER_GET_KEY;
-  goto cleanup;
-failure_encryption:
-  rc = ERROR_ENCRYPTION_FAILURE;
-  goto cleanup;
-failure_getbuffbytebuff:
-  rc = ERROR_GETBUFF_FAILURE;
-  goto cleanup;
-failure_getlenbytebuff:
-  rc = ERROR_GETLEN_FAILURE;
-  goto cleanup;
-failure_getusrconf:
-  rc = ERROR_GETUSRCONF_FAILURE;
-  goto cleanup;
 
 }
 

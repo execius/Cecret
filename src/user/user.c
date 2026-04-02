@@ -39,52 +39,52 @@ int InitUser(user_t **user
   (*user)->username = NULL;
   (*user)->hashed_pass = NULL;
   (*user)->user_db_path = NULL;
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->username,username)), ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate username bytebuffer",
-      failure_dupbuff);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->user_db_path,user_db_path)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate user db path bytebuffer",
-      failure_dupbuff);
+      rc,cleanup);
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->hashed_pass,hashed_pass)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate hashed pass bytebuffer",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->password_salt,password_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate password_salt salt buff",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->hmac_salt,hmac_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate hmac_salt buff",
-      failure_dupbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->key,key)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate key buff",
-      failure_dupbuff);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->enc_salt,enc_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate enc_salt buff",
-      failure_dupbuff);
+      rc,cleanup);
   memcpy(&(*user)->userconf,&userconfig,sizeof(UserConfig_t));
 
   return ERROR_SUCCESS;
@@ -98,9 +98,6 @@ cleanup:
   OPENSSL_cleanse(*user, sizeof(user_t));
   free(*user);
   return rc;
-failure_dupbuff:
-  rc = ERROR_BUFFDUP_FAILURE;
-  goto cleanup ;
 }
 
 
@@ -132,18 +129,18 @@ int CreateUser(user_t **user
              *key_buf = NULL; 
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (RAND_bytes(
       hmac_salt,
       SALT_SIZE)),
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "failed to generate hmac salt",
-    failure_libssl);
+    rc,cleanup);
 
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (RAND_bytes(
                   password_salt,
                   SALT_SIZE)
@@ -151,17 +148,17 @@ int CreateUser(user_t **user
       LIBSSL_SUCCESS,
       ERROR_LIBSSL_FAILURE,
       "failed to generate hmac salt",
-      failure_libssl);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (RAND_bytes(
       enc_salt,
       SALT_SIZE)),
     LIBSSL_SUCCESS,
     ERROR_LIBSSL_FAILURE,
     "failed to generate encryption salt",
-    failure_libssl);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (
        GetBuffByteBuff(password
                        ,(unsigned char **) &password_str)
@@ -169,9 +166,9 @@ int CreateUser(user_t **user
       ERROR_SUCCESS,
       ERROR_GETBUFF_FAILURE,
       "failed to get password buffer from bytebuffer struct",
-      failure_buff_getbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (
        GetLenByteBuff(password
                        ,(size_t *) &password_len)
@@ -179,10 +176,10 @@ int CreateUser(user_t **user
       ERROR_SUCCESS,
       ERROR_GETLEN_FAILURE,
       "failed to get password lenght from bytebuffer struct",
-      failure_buff_getlen);
+      rc,cleanup);
 
   
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (pkcs5_keyed_hash(
       password_str,
       password_len,
@@ -195,9 +192,9 @@ int CreateUser(user_t **user
     ERROR_SUCCESS,
     ERROR_HASH_FAILED,
     "failed to hash password",
-    failure_hash);
+    rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (pkcs5_keyed_hash(
       password_str,
       password_len,
@@ -210,55 +207,55 @@ int CreateUser(user_t **user
     ERROR_SUCCESS,
     ERROR_HASH_FAILED,
     "failed to derive encryption key",
-    failure_hash);
+    rc,cleanup);
 
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendByteBuff(user_db_path,
                     globalconf->master_db_dir_path)
        ),
       ERROR_SUCCESS,
       ERROR_APPENDBUFF_FAILED,
       "failed to append byte buff while building user db path",
-      failure_appbuf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendStrByteBuff(user_db_path,"/")
        ),
       ERROR_SUCCESS,
       ERROR_APPENDSTRBUFF_FAILED,
       "failed to append '/' while building user db path",
-      failure_appstrbuf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendStrByteBuff(user_db_path,"users")
        ),
       ERROR_SUCCESS,
       ERROR_APPENDSTRBUFF_FAILED,
       "failed to append 'users' while building user db path",
-      failure_appstrbuf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendStrByteBuff(user_db_path,"/")
        ),
       ERROR_SUCCESS,
       ERROR_APPENDSTRBUFF_FAILED,
       "failed to append '/' while building user db path",
-      failure_appstrbuf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendByteBuff(user_db_path,
                     username)
        ),
       ERROR_SUCCESS,
       ERROR_APPENDBUFF_FAILED,
       "failed to append byte buff while building user db path",
-      failure_appbuf);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendStrByteBuff(user_db_path,".db")
        ),
       ERROR_SUCCESS,
       ERROR_APPENDSTRBUFF_FAILED,
       "failed to append 'users' while building user db path",
-      failure_appstrbuf);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&hashed_pass_buf,
                     hashed_pass,
                     EVP_MD_size(
@@ -266,8 +263,8 @@ int CreateUser(user_t **user
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for hashed pass",
-      failure_initbuff);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&key_buf,
                     key,
                     EVP_MD_size(
@@ -275,35 +272,35 @@ int CreateUser(user_t **user
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for key",
-      failure_initbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&hmac_salt_buf,
                     hmac_salt,
                     SALT_SIZE)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for hmac salt",
-      failure_initbuff);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&password_salt_buf,
                     password_salt,
                     SALT_SIZE)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for password salt",
-      failure_initbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitByteBuff(&enc_salt_buf,
                     enc_salt,
                     SALT_SIZE)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for enryption salt",
-      failure_initbuff);
+      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (InitUser(
       user,
       username,
@@ -317,7 +314,7 @@ int CreateUser(user_t **user
     ERROR_SUCCESS,
     ERROR_USER_INIT,
     "failed to initialize user db path",
-    failure_init);
+    rc,cleanup);
 
   rc = ERROR_SUCCESS;
 cleanup:
@@ -338,32 +335,6 @@ cleanup:
   OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
   return rc;
 
-failure_appbuf:
-  rc = ERROR_APPENDBUFF_FAILED;
-  goto cleanup;
-
-failure_appstrbuf:
-  rc = ERROR_APPENDSTRBUFF_FAILED;
-  goto cleanup;
-
-failure_libssl:
-  rc = ERROR_LIBSSL_FAILURE;
-  goto cleanup;
-failure_hash:
-  rc =  ERROR_HASH_FAILED;
-  goto cleanup;
-failure_init:
-  rc = ERROR_USER_INIT;
-  goto cleanup;
-failure_initbuff:
-  rc = ERROR_BUFFINIT_FAILURE;
-  goto cleanup;
-failure_buff_getlen:
-  rc = ERROR_GETLEN_FAILURE;
-  goto cleanup;
-failure_buff_getbuff:
-  rc = ERROR_GETBUFF_FAILURE; 
-  goto cleanup;
 }
 int DestroyUser(user_t *user){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
