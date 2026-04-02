@@ -1,4 +1,3 @@
-
 #include "encryption.h" 
 
 
@@ -98,8 +97,6 @@ failure:
 }
 
 
-/*cipher buffer MUST be larger then the plain buffer with at least 
- * encryption block size difference*/
 int encrypt(const EVP_CIPHER *type,
             const unsigned char*key,
             const unsigned char *iv,
@@ -176,6 +173,8 @@ overflow:
   return  ERROR_BUF_OVERFLOW;
 
 }
+
+
 // EVP_CIPHER *EVP_CIPHER_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
 //                              const char *properties);
 //
@@ -192,3 +191,152 @@ overflow:
 //                       int *outl, const unsigned char *in, int inl);
 // int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm, int *outl);
 //
+int EncryptByteBuff(
+            const ByteBuff_t *plain,
+            const ByteBuff_t *iv,
+            ByteBuff_t **cipher,
+            user_t *user)
+{
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  unsigned char *key_str = NULL;
+  unsigned char *iv_str = NULL;
+  unsigned char *plain_str = NULL;
+  unsigned char *cipher_str = NULL;
+  UserConfig_t *userconfig = NULL;
+  int plain_size = 0;
+  int cipher_size = 0;
+  int cipher_max = 0;
+  int rc = 0;
+  ByteBuff_t *key = NULL;
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (UserGetUserConf(user
+                       ,&userconfig)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "failed to get userconfig from user",
+      failure_getusrconf);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (GetLenByteBuff(plain
+                       ,(size_t *)&plain_size)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "failed to get plain len from byte buff",
+      failure_getlenbytebuff);
+
+  /*+512 just in case*/
+  cipher_max = plain_size +EVP_CIPHER_get_block_size(
+      encryption_options_fetchers[userconfig->encryption_option_idx]())+512;
+  MALLOC_CHECK_NULL_LOG(cipher,
+      cipher_max,
+      ERROR_MEMORY_ALLOCATION,
+      "cannot allocate for cipher str");
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (UserGetKey(user,
+                       &key)), 
+      ERROR_SUCCESS,
+      ERROR_USER_GET_KEY,
+      "error gettingn key from user ",
+      failure_usrgetkey);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (GetBuffByteBuff(key
+                       ,(unsigned char **)&key_str)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_FAILURE,
+      "failed to get key  str from byte buff",
+      failure_getbuffbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (GetBuffByteBuff(iv
+                       ,(unsigned char **)&iv_str)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_FAILURE,
+      "failed to get iv  str from byte buff",
+      failure_getbuffbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (GetBuffByteBuff(plain
+                       ,(unsigned char **)&plain_str)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_FAILURE,
+      "failed to get plain  str from byte buff",
+      failure_getbuffbytebuff);
+
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (encrypt(encryption_options_fetchers[userconfig->encryption_option_idx]()
+               ,key_str
+               ,iv_str
+               ,plain_str
+               ,plain_size
+               ,cipher_str
+               ,&cipher_size
+      )),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTION_FAILURE,
+      "failed to encrypt",
+      failure_encryption);
+
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (InitByteBuff(cipher
+                    ,cipher_str
+                    ,(size_t)cipher_size)
+      ),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to get plain  str from byte buff",
+      failure_initbuff);
+
+  rc = ERROR_SUCCESS;
+cleanup:
+  if (cipher_str) {
+    OPENSSL_cleanse(cipher_str,strlen((const char *)cipher_str));
+    free(cipher_str);
+    }
+  if (plain_str) {
+    OPENSSL_cleanse(plain_str,strlen((const char *)plain_str));
+    free(plain_str);
+    }
+  if (iv_str) {
+    OPENSSL_cleanse(iv_str,strlen((const char *)iv_str));
+    free(iv_str);
+    }
+  if (userconfig) {
+    OPENSSL_cleanse(userconfig,sizeof(UserConfig_t));
+    free(userconfig);
+    }
+  return rc;
+
+failure_initbuff:
+  rc = ERROR_BUFFINIT_FAILURE;
+  goto cleanup;
+failure_usrgetkey:
+  rc = ERROR_USER_GET_KEY;
+  goto cleanup;
+failure_encryption:
+  rc = ERROR_ENCRYPTION_FAILURE;
+  goto cleanup;
+failure_getbuffbytebuff:
+  rc = ERROR_GETBUFF_FAILURE;
+  goto cleanup;
+failure_getlenbytebuff:
+  rc = ERROR_GETLEN_FAILURE;
+  goto cleanup;
+failure_getusrconf:
+  rc = ERROR_GETUSRCONF_FAILURE;
+  goto cleanup;
+
+}
+

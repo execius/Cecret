@@ -1,5 +1,6 @@
 #include "globalconfig.h"
 
+
 GlobalConf_t *globalconf = NULL;
 
 int InitGlobalConf(void){

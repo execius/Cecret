@@ -11,33 +11,34 @@ typedef struct EncryptedAccount_s {
   ByteBuff_t *iv;
 
   /*these are used for lookup*/
-  unsigned char username_hash[STRMAX];
-  unsigned char platform_hash[STRMAX];
-  unsigned char email_hash[STRMAX];
+  ByteBuff_t *username_hash;
+  ByteBuff_t *platform_hash;
+  ByteBuff_t *email_hash;
 
 
 } EncryptedAccount_t;
 
 typedef struct Account_s {
-  char username[STRMAX];
-  char password[STRMAX];
-  char email[STRMAX];
-  char platform[STRMAX];
-  char note[STRMAX];
+  ByteBuff_t *username;
+  ByteBuff_t *email;
+  ByteBuff_t *password;
+  ByteBuff_t *platform;
+  ByteBuff_t *note;
   /*used for encryption*/
   ByteBuff_t *iv;
 }Account_t ;
 
-int InitAccount(Account_t **account
-    ,const char *username
-    ,const char *password
-    ,const char *email
-    ,const char *platform
-    ,const char *note
-    ,ByteBuff_t *iv)
+int InitAccount(Account_t **account 
+    ,const ByteBuff_t *username
+    ,const ByteBuff_t *password
+    ,const ByteBuff_t *email
+    ,const ByteBuff_t *platform
+    ,const ByteBuff_t *note
+    ,const ByteBuff_t *iv)
 {
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(email,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -45,96 +46,52 @@ int InitAccount(Account_t **account
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(*account,sizeof(Account_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate user");
-
-
   ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (strlen(username) >= STRMAX),
-      1,
-      LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-      "username lenght is larger than string lenght limit",
-      failure_len);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (snprintf((*account)->username,
-                STRMAX-1, "%s",username) > 0),
-      1,
-      ERROR_STDLIB_FAILURE,
-      "failed to copy username into user struct",
-      failure_stdlib);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (strlen(password) >= STRMAX),
-      1,
-      LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-      "password lenght is larger than string lenght limit",
-      failure_len);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (snprintf((*account)->password,
-                STRMAX-1, "%s",password) > 0),
-      1,
-      ERROR_STDLIB_FAILURE,
-      "failed to copy username into user struct",
-      failure_stdlib);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (strlen(email) >= STRMAX),
-      1,
-      LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-      "email lenght is larger than string lenght limit",
-      failure_len);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (snprintf((*account)->email,
-                STRMAX-1, "%s",email) > 0),
-      1,
-      ERROR_STDLIB_FAILURE,
-      "failed to copy username into user struct",
-      failure_stdlib);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (strlen(platform) >= STRMAX),
-      1,
-      LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-      "platform lenght is larger than string lenght limit",
-      failure_len);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (snprintf((*account)->platform,
-                STRMAX-1, "%s",platform) > 0),
-      1,
-      ERROR_STDLIB_FAILURE,
-      "failed to copy username into user struct",
-      failure_stdlib);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (strlen(note) >= STRMAX),
-      1,
-      LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX,
-      "note lenght is larger than string lenght limit",
-      failure_len);
-
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (snprintf((*account)->note,
-                STRMAX-1, "%s",note) > 0),
-      1,
-      ERROR_STDLIB_FAILURE,
-      "failed to copy username into user struct",
-      failure_stdlib);
-  ERROR_CHECK_SUCCESS_GOTO_LOG(
-      (DupByteBuff(&(*account)->iv,iv)),
+      (DupByteBuff(&(*account)->username,username)), 
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to copy user iv into user struct",
+      "failed to duplicate username bytebuffer",
       failure_dupbuff);
 
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->password,password)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate password bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->email,email)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate email bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->platform,platform)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate platform bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->note,note)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate note bytebuffer",
+      failure_dupbuff);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->iv,iv)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate iv bytebuffer",
+      failure_dupbuff);
+
+
+
   return ERROR_SUCCESS;
-failure_len:
-  rc = LOCKER_ERROR_STRING_LENGHT_ABOVE_MAX;
-  goto cleanup;
 failure_dupbuff:
   rc = ERROR_BUFFDUP_FAILURE;
-  goto cleanup;
-failure_stdlib:
-  rc = ERROR_STDLIB_FAILURE;
   goto cleanup;
 cleanup:
   if (*account){
@@ -143,13 +100,13 @@ cleanup:
   }
   return rc;
 }
-int CreateAccount(Account_t **account,
-    const char *username,
-    const char *password,
-    const char *email,
-    const char *platform,
-    const char *note,
-    user_t *user)
+int CreateAccount(Account_t **account
+    ,const ByteBuff_t *username
+    ,const ByteBuff_t *password
+    ,const ByteBuff_t *email
+    ,const ByteBuff_t *platform
+    ,const ByteBuff_t *note
+    ,user_t *user)
 {
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -243,3 +200,212 @@ int DestroyAccount(Account_t *account){
 }
 
 
+
+
+
+
+/*encrypted account stuff*/
+
+
+
+
+
+
+
+
+
+
+int InitEncryptedAccount(EncryptedAccount_t **account 
+    ,const ByteBuff_t *username_cipher
+    ,const ByteBuff_t *password_cipher
+    ,const ByteBuff_t *email_cipher
+    ,const ByteBuff_t *platform_cipher
+    ,const ByteBuff_t *note_cipher
+    ,const ByteBuff_t *iv
+    ,const ByteBuff_t *username_hash
+    ,const ByteBuff_t *platform_hash
+    ,const ByteBuff_t *email_hash)
+{
+
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(username_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(email_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(platform_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(note_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(username_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(platform_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(email_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  int rc = 0 ;
+  MALLOC_CHECK_NULL_LOG(*account,sizeof(EncryptedAccount_t),ERROR_MEMORY_ALLOCATION,
+      "cannot allocate user");
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->username_cipher,username_cipher)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate username_cipher bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->password_cipher,password_cipher)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate password_cipher bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->email_cipher,email_cipher)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate email_cipher bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->platform_cipher,platform_cipher)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate platform_cipher bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->note_cipher,note_cipher)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate note_cipher bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->iv,iv)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate iv bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->username_hash,username_hash)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate username_hash bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->platform_hash,platform_hash)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate platform_hash bytebuffer",
+      failure_dupbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*account)->email_hash,email_hash)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate email_hash bytebuffer",
+      failure_dupbuff);
+  return ERROR_SUCCESS;
+failure_dupbuff:
+  rc = ERROR_BUFFDUP_FAILURE;
+  goto cleanup;
+cleanup:
+  if (*account){
+    OPENSSL_cleanse(*account, sizeof(Account_t));
+    free(*account);
+  }
+  return rc;
+}
+
+
+int EncryptAccount(Account_t *account
+    ,EncryptedAccount_t **eac
+    ,user_t *user)
+{
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+
+  int rc = 0;
+  ByteBuff_t *username_cipher = NULL;
+  ByteBuff_t *email_cipher = NULL;
+  ByteBuff_t *password_cipher = NULL;
+  ByteBuff_t *platform_cipher = NULL;
+  ByteBuff_t *note_cipher = NULL;
+  // ByteBuff_t *username_hash;
+  // ByteBuff_t *platform_hash;
+  // ByteBuff_t *email_hash;
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (EncryptByteBuff(account->username,
+                       account->iv,
+                       &username_cipher,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt username byte buffer",
+      failure_encbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (EncryptByteBuff(account->password,
+                       account->iv,
+                       &password_cipher,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt password byte buffer",
+      failure_encbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (EncryptByteBuff(account->email,
+                       account->iv,
+                       &email_cipher,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt email byte buffer",
+      failure_encbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (EncryptByteBuff(account->platform,
+                       account->iv,
+                       &platform_cipher,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt platform byte buffer",
+      failure_encbytebuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (EncryptByteBuff(account->note,
+                       account->iv,
+                       &note_cipher,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt note byte buffer",
+      failure_encbytebuff);
+
+  // ERROR_CHECK_SUCCESS_GOTO_LOG(
+  //   (pkcs5_keyed_hash(
+  //     password_str,
+  //     password_len,
+  //     key,
+  //     ,
+  //     SALT_SIZE,
+  //     hashing_options_fetchers[userconfig.key_hashing_option_idx](),
+  //     EVP_MD_size(hashing_options_fetchers[userconfig.hashing_option_idx]()),
+  //     globalconf->key_derivation_iters)),
+  //   ERROR_SUCCESS,
+  //   ERROR_HASH_FAILED,
+  //   "failed to derive encryption key",
+  //   failure_hash);
+  rc = ERROR_SUCCESS;
+
+cleanup:
+  if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
+  if (password_cipher) DestroyByteBuff_Secure(password_cipher);
+  if (email_cipher) DestroyByteBuff_Secure(email_cipher);
+  if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
+  if (note_cipher) DestroyByteBuff_Secure(note_cipher);
+  return rc;
+failure_encbytebuff:
+  rc = ERROR_ENCRYPTBYTEBUFF_FAILURE;
+  goto cleanup;
+}

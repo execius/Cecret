@@ -5,17 +5,21 @@ typedef struct user_s {
   ByteBuff_t *user_db_path;
 
   ByteBuff_t *hashed_pass;
+  ByteBuff_t *key;
   /*used for lookup*/
   ByteBuff_t *hmac_salt;
   ByteBuff_t *password_salt;
+  ByteBuff_t *enc_salt;
   UserConfig_t userconf;
 } user_t;
 
 int InitUser(user_t **user
              ,ByteBuff_t *username
              ,ByteBuff_t *hashed_pass
+             ,ByteBuff_t *key
              ,ByteBuff_t *hmac_salt
              ,ByteBuff_t *password_salt
+             ,ByteBuff_t *enc_salt
              ,ByteBuff_t *user_db_path
              ,UserConfig_t userconfig)
 {
@@ -69,6 +73,18 @@ int InitUser(user_t **user
       "failed to duplicate hmac_salt buff",
       failure_dupbuff);
 
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*user)->key,key)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate key buff",
+      failure_dupbuff);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (DupByteBuff(&(*user)->enc_salt,enc_salt)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate enc_salt buff",
+      failure_dupbuff);
   memcpy(&(*user)->userconf,&userconfig,sizeof(UserConfig_t));
 
   return ERROR_SUCCESS;
@@ -105,11 +121,15 @@ int CreateUser(user_t **user
   int password_len = 0;
   unsigned char hmac_salt[SALT_SIZE];
   unsigned char password_salt[SALT_SIZE];
+  unsigned char enc_salt[SALT_SIZE];
   unsigned char hashed_pass[STRMAX];
+  unsigned char key[STRMAX];
   ByteBuff_t *hmac_salt_buf = NULL,
              *password_salt_buf = NULL,
              *user_db_path = NULL,
-             *hashed_pass_buf = NULL; 
+             *hashed_pass_buf = NULL,
+             *enc_salt_buf = NULL,
+             *key_buf = NULL; 
 
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
@@ -133,6 +153,14 @@ int CreateUser(user_t **user
       "failed to generate hmac salt",
       failure_libssl);
 
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (RAND_bytes(
+      enc_salt,
+      SALT_SIZE)),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "failed to generate encryption salt",
+    failure_libssl);
   ERROR_CHECK_SUCCESS_GOTO_LOG(
       (
        GetBuffByteBuff(password
@@ -169,6 +197,20 @@ int CreateUser(user_t **user
     "failed to hash password",
     failure_hash);
 
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+    (pkcs5_keyed_hash(
+      password_str,
+      password_len,
+      key,
+      enc_salt,
+      SALT_SIZE,
+      hashing_options_fetchers[userconfig.key_hashing_option_idx](),
+      EVP_MD_size(hashing_options_fetchers[userconfig.hashing_option_idx]()),
+      globalconf->key_derivation_iters)),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to derive encryption key",
+    failure_hash);
 
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
@@ -225,6 +267,15 @@ int CreateUser(user_t **user
       ERROR_BUFFINIT_FAILURE,
       "failed to initialize byte buffer for hashed pass",
       failure_initbuff);
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (InitByteBuff(&key_buf,
+                    key,
+                    EVP_MD_size(
+                      hashing_options_fetchers[userconfig.key_hashing_option_idx]()))),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for key",
+      failure_initbuff);
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
       (InitByteBuff(&hmac_salt_buf,
@@ -244,12 +295,23 @@ int CreateUser(user_t **user
       failure_initbuff);
 
   ERROR_CHECK_SUCCESS_GOTO_LOG(
+      (InitByteBuff(&enc_salt_buf,
+                    enc_salt,
+                    SALT_SIZE)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for enryption salt",
+      failure_initbuff);
+
+  ERROR_CHECK_SUCCESS_GOTO_LOG(
     (InitUser(
       user,
       username,
       hashed_pass_buf,
+      key_buf,
       hmac_salt_buf,
       password_salt_buf,
+      enc_salt_buf,
       user_db_path,
       userconfig)),
     ERROR_SUCCESS,
@@ -260,7 +322,9 @@ int CreateUser(user_t **user
   rc = ERROR_SUCCESS;
 cleanup:
   if (hmac_salt_buf) DestroyByteBuff_Secure(hmac_salt_buf);
+  if (enc_salt_buf) DestroyByteBuff_Secure(enc_salt_buf);
   if (hashed_pass_buf) DestroyByteBuff_Secure(hashed_pass_buf);
+  if (key_buf) DestroyByteBuff_Secure(key_buf);
   if (password_salt_buf)DestroyByteBuff_Secure(password_salt_buf);
   if (user_db_path)DestroyByteBuff_Secure(user_db_path);
     if (password_str){ 
@@ -268,7 +332,9 @@ cleanup:
     free(password_str);
     }
   OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
+  OPENSSL_cleanse(key, sizeof(hmac_salt));
   OPENSSL_cleanse(password_salt, sizeof(password_salt));
+  OPENSSL_cleanse(enc_salt, sizeof(enc_salt));
   OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
   return rc;
 
@@ -329,6 +395,16 @@ int UserGetUsername(user_t *user,ByteBuff_t **username){
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate username buff");
+  return ERROR_SUCCESS;
+}
+int UserGetKey(user_t *user,ByteBuff_t **key){
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(key,user->key)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate key buff");
   return ERROR_SUCCESS;
 }
 int UserGetHmacSalt(user_t *user,ByteBuff_t **hmac_salt){

@@ -2,6 +2,7 @@
 #define GLOBALCONF_H
 
 #include "encryption.h" 
+#include "bytebuffer.h" 
 typedef struct GlobalConf_s {
 
   uint16_t version;

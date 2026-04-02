@@ -1,18 +1,22 @@
 #ifndef USER_H
 #define USER_H
+
+typedef struct user_s user_t;
+
 #include "includes.h" 
 #include "globalconfig.h"
 #include "usersconfig.h"
 #include "bytebuffer.h" 
 #include "encryption.h"
 
-typedef struct user_s user_t;
 
 int InitUser(user_t **user
              ,ByteBuff_t *username
              ,ByteBuff_t *hashed_pass
+             ,ByteBuff_t *key
              ,ByteBuff_t *hmac_salt
              ,ByteBuff_t *password_salt
+             ,ByteBuff_t *enc_salt
              ,ByteBuff_t *user_db_path
              ,UserConfig_t userconfig);
 int DestroyUser(user_t *user);
@@ -26,6 +30,7 @@ int ChangeUserPass(user_t *);
  * and preferably cleared with OPENSSL_cleanse 
  * before that*/
 int UserGetUsername(user_t *user,ByteBuff_t **username);
+int UserGetKey(user_t *user,ByteBuff_t **key);
 int UserGetHmacSalt(user_t *user,ByteBuff_t **hmac_salt);
 int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt);
 int UserGetHashedPass(user_t *user,ByteBuff_t **hashed_pass);
@@ -37,7 +42,8 @@ enum  UserErrors
   ERROR_USER_INIT = - 3000,
   ERROR_USER_GET_USERNAME = -3001,
   ERROR_GETUSRCONF_FAILURE = -3002,
-  ERROR_USER_GET_DBPATH = -3003
+  ERROR_USER_GET_DBPATH = -3003,
+  ERROR_USER_GET_KEY = -3004
 };
 
 #endif

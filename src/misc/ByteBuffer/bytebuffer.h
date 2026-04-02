@@ -2,14 +2,15 @@
 #ifndef BYTEBUFF
 #define BYTEBUFF
 
+typedef struct ByteBuff_s  ByteBuff_t ;
 
 #include "includes.h"
 #include "encryption.h" 
+#include "user.h"
 
 
 /*note : these buffer are NOT null terminated , they designed to 
  * be used inherently with the lenght member in mind , do NOT use them as strings*/
-typedef struct ByteBuff_s  ByteBuff_t ;
 int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len);
 int DestroyByteBuff_Secure(ByteBuff_t *bytebuff);
 int DestroyByteBuff_NoWipe(ByteBuff_t *bytebuff);
