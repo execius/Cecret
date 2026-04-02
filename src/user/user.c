@@ -35,10 +35,11 @@ int InitUser(user_t **user
       "cannot allocate user");
 
   (*user)->hmac_salt = NULL;
-  (*user)->password_salt = NULL;
-  (*user)->username = NULL;
-  (*user)->hashed_pass = NULL;
   (*user)->user_db_path = NULL;
+  (*user)->hashed_pass = NULL;
+  (*user)->key = NULL;
+  (*user)->password_salt = NULL;
+  (*user)->enc_salt = NULL;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->username,username)), ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
@@ -89,14 +90,8 @@ int InitUser(user_t **user
 
   return ERROR_SUCCESS;
 cleanup:
-  if ((*user)->hashed_pass) DestroyByteBuff_Secure((*user)->hashed_pass);
-  if ((*user)->username) DestroyByteBuff_Secure((*user)->username);
-  if ((*user)->password_salt) DestroyByteBuff_Secure((*user)->password_salt);
-  if ((*user)->hmac_salt) DestroyByteBuff_Secure((*user)->hmac_salt);
-  if ((*user)->user_db_path) DestroyByteBuff_Secure((*user)->user_db_path);
-
-  OPENSSL_cleanse(*user, sizeof(user_t));
-  free(*user);
+  DestroyUser(*user);
+  *user = NULL;
   return rc;
 }
 
@@ -202,13 +197,21 @@ int CreateUser(user_t **user
       enc_salt,
       SALT_SIZE,
       hashing_options_fetchers[userconfig.key_hashing_option_idx](),
-      EVP_MD_size(hashing_options_fetchers[userconfig.hashing_option_idx]()),
+      EVP_MD_size(hashing_options_fetchers[userconfig.key_hashing_option_idx]()),
       globalconf->key_derivation_iters)),
     ERROR_SUCCESS,
     ERROR_HASH_FAILED,
     "failed to derive encryption key",
     rc,cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitByteBuff(&user_db_path,
+                    (unsigned char *)"",
+                    0)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for user db path",
+      rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (AppendByteBuff(user_db_path,
@@ -324,12 +327,12 @@ cleanup:
   if (key_buf) DestroyByteBuff_Secure(key_buf);
   if (password_salt_buf)DestroyByteBuff_Secure(password_salt_buf);
   if (user_db_path)DestroyByteBuff_Secure(user_db_path);
-    if (password_str){ 
-    OPENSSL_cleanse(password_str,strlen(password_str));
+  if (password_str){ 
+    OPENSSL_cleanse(password_str,password_len);
     free(password_str);
-    }
+  }
   OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
-  OPENSSL_cleanse(key, sizeof(hmac_salt));
+  OPENSSL_cleanse(key, sizeof(key));
   OPENSSL_cleanse(password_salt, sizeof(password_salt));
   OPENSSL_cleanse(enc_salt, sizeof(enc_salt));
   OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
@@ -343,6 +346,7 @@ int DestroyUser(user_t *user){
   if (user->hmac_salt) DestroyByteBuff_Secure(user->hmac_salt);
   if (user->user_db_path) DestroyByteBuff_Secure(user->user_db_path);
   if (user->username) DestroyByteBuff_Secure(user->username);
+  if (user->key) DestroyByteBuff_Secure(user->key);
 
   OPENSSL_cleanse(user, sizeof(user_t));
   free(user);

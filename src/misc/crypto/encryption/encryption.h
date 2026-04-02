@@ -36,6 +36,14 @@ int pkcs5_keyed_hash(const char *master,
                      const EVP_MD *digest,
                      int key_size,
                      uint32_t iters) ;
+int pkcs5_keyed_hash_bytebuff(
+    const ByteBuff_t *master,
+    ByteBuff_t **key,
+    size_t key_size,
+    const ByteBuff_t *salt,
+    const EVP_MD *digest,
+    uint32_t iters) ;
+
 int hash_not_keyed(const unsigned char *plain,
                   size_t plain_size,
                   const EVP_MD *type 

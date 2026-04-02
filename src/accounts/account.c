@@ -9,6 +9,8 @@ typedef struct EncryptedAccount_s {
   ByteBuff_t *note_cipher;
   /*used for decryption*/
   ByteBuff_t *iv;
+  /*used for lookup*/
+  ByteBuff_t *lookup_salt;
 
   /*these are used for lookup*/
   ByteBuff_t *username_hash;
@@ -26,6 +28,8 @@ typedef struct Account_s {
   ByteBuff_t *note;
   /*used for encryption*/
   ByteBuff_t *iv;
+  /*used for lookup*/
+  ByteBuff_t *lookup_salt;
 }Account_t ;
 
 int InitAccount(Account_t **account 
@@ -34,6 +38,7 @@ int InitAccount(Account_t **account
     ,const ByteBuff_t *email
     ,const ByteBuff_t *platform
     ,const ByteBuff_t *note
+    ,const ByteBuff_t *lookup_salt
     ,const ByteBuff_t *iv)
 {
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -46,6 +51,14 @@ int InitAccount(Account_t **account
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(*account,sizeof(Account_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate user");
+  (*account)->username = NULL;
+  (*account)->email = NULL;
+  (*account)->password = NULL;
+  (*account)->platform = NULL;
+  (*account)->note = NULL;
+  (*account)->iv = NULL;
+  (*account)->lookup_salt = NULL;
+
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username,username)), 
       ERROR_SUCCESS,
@@ -93,16 +106,23 @@ int InitAccount(Account_t **account
       rc,
       cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*account)->lookup_salt,lookup_salt)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate lookup_salt bytebuffer",
+      rc,
+      cleanup);
 
 
 
   rc = ERROR_SUCCESS;
-  goto cleanup;
+  return rc;
 cleanup:
   if (*account){
-    OPENSSL_cleanse(*account, sizeof(Account_t));
-    free(*account);
+    DestroyAccount(*account);
   }
+  *account = NULL;
   return rc;
 }
 int CreateAccount(Account_t **account
@@ -119,9 +139,10 @@ int CreateAccount(Account_t **account
   ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
-  ByteBuff_t *iv_buf = NULL;
+  ByteBuff_t *iv_buf = NULL , *lookup_salt_buf = NULL;
   UserConfig_t *userconf =  NULL;
   unsigned char *iv = NULL;
+  unsigned char *lookup_salt = NULL;
   int rc = 0 , iv_len = 0;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetUserConf(user,&userconf)),
@@ -140,6 +161,10 @@ int CreateAccount(Account_t **account
       ERROR_MEMORY_ALLOCATION,
       "error allocating memory for account IV");
 
+  MALLOC_CHECK_NULL_LOG(lookup_salt,
+      SALT_SIZE,
+      ERROR_MEMORY_ALLOCATION,
+      "error allocating memory for account lookup salt");
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (RAND_bytes(
                   iv,
@@ -147,10 +172,20 @@ int CreateAccount(Account_t **account
                  )),
       LIBSSL_SUCCESS,
       ERROR_LIBSSL_FAILURE,
-      "failed to generate hmac salt",
+      "failed to generate iv",
       rc,
       cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (RAND_bytes(
+                  lookup_salt,
+                  SALT_SIZE
+                 )),
+      LIBSSL_SUCCESS,
+      ERROR_LIBSSL_FAILURE,
+      "failed to generate lookup salt",
+      rc,
+      cleanup);
 
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
@@ -159,7 +194,17 @@ int CreateAccount(Account_t **account
                     (size_t)iv_len)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for hashed pass",
+      "failed to initialize byte buffer for iv",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitByteBuff(&lookup_salt_buf,
+                    lookup_salt,
+                    SALT_SIZE)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for lookup_salt",
       rc,
       cleanup);
 
@@ -172,6 +217,7 @@ int CreateAccount(Account_t **account
                    email,
                    platform,
                    note,
+                   lookup_salt_buf,
                    iv_buf)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
@@ -182,15 +228,34 @@ int CreateAccount(Account_t **account
   rc = ERROR_SUCCESS;
   goto cleanup;
 cleanup:
-  OPENSSL_cleanse(iv,iv_len);
-  if (iv) free(iv);
-  if (iv_buf) DestroyByteBuff_Secure(iv_buf);
+  if (iv){
+    OPENSSL_cleanse(iv,iv_len);
+    free(iv);
+  }
+  if (lookup_salt){
+    OPENSSL_cleanse(lookup_salt,SALT_SIZE);
+    free(lookup_salt);
+  }
+  if (iv_buf){
+    DestroyByteBuff_Secure(iv_buf);
+    free(iv_buf);
+  }
+  if (lookup_salt_buf){
+    DestroyByteBuff_Secure(lookup_salt_buf);
+    free(lookup_salt_buf);
+  }
   if (userconf) free(userconf);
   return rc;
 }
 int DestroyAccount(Account_t *account){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  DestroyByteBuff_Secure(account->iv);
+  if (account->username)    DestroyByteBuff_Secure(account->username);
+  if (account->password)    DestroyByteBuff_Secure(account->password);
+  if (account->email)       DestroyByteBuff_Secure(account->email);
+  if (account->platform)    DestroyByteBuff_Secure(account->platform);
+  if (account->note)        DestroyByteBuff_Secure(account->note);
+  if (account->iv)          DestroyByteBuff_Secure(account->iv);
+  if (account->lookup_salt) DestroyByteBuff_Secure(account->lookup_salt);
   OPENSSL_cleanse(account, sizeof(Account_t));
   free(account);
   return ERROR_SUCCESS;
@@ -219,6 +284,7 @@ int InitEncryptedAccount(EncryptedAccount_t **account
     ,const ByteBuff_t *platform_cipher
     ,const ByteBuff_t *note_cipher
     ,const ByteBuff_t *iv
+    ,const ByteBuff_t *lookup_salt
     ,const ByteBuff_t *username_hash
     ,const ByteBuff_t *platform_hash
     ,const ByteBuff_t *email_hash)
@@ -230,12 +296,23 @@ int InitEncryptedAccount(EncryptedAccount_t **account
   ERROR_CHECK_NULL_LOG(platform_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(note_cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(username_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(platform_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(email_hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(*account,sizeof(EncryptedAccount_t),ERROR_MEMORY_ALLOCATION,
-      "cannot allocate user");
+      "cannot allocate encrypted acc");
+  (*account)->username_cipher = NULL;
+  (*account)->password_cipher = NULL;
+  (*account)->email_cipher = NULL;
+  (*account)->platform_cipher = NULL;
+  (*account)->note_cipher = NULL;
+  (*account)->iv = NULL;
+  (*account)->lookup_salt = NULL;
+  (*account)->username_hash = NULL;
+  (*account)->platform_hash = NULL;
+  (*account)->email_hash = NULL;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username_cipher,username_cipher)), 
       ERROR_SUCCESS,
@@ -282,6 +359,12 @@ int InitEncryptedAccount(EncryptedAccount_t **account
       ERROR_BUFFDUP_FAILURE,
       "failed to duplicate iv bytebuffer",
       rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*account)->lookup_salt,lookup_salt)), 
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate lookup_salt bytebuffer",
+      rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*account)->username_hash,username_hash)), 
@@ -304,15 +387,31 @@ int InitEncryptedAccount(EncryptedAccount_t **account
       "failed to duplicate email_hash bytebuffer",
       rc,cleanup);
   rc = ERROR_SUCCESS;
-  goto cleanup;
+  return rc;
 cleanup:
   if (*account){
-    OPENSSL_cleanse(*account, sizeof(Account_t));
-    free(*account);
+    DestroyEncryptedAccount(*account);
+    *account = NULL;
   }
   return rc;
 }
 
+int DestroyEncryptedAccount(EncryptedAccount_t *account){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  if (account->username_cipher)    DestroyByteBuff_Secure(account->username_cipher);
+  if (account->password_cipher)    DestroyByteBuff_Secure(account->password_cipher);
+  if (account->email_cipher)       DestroyByteBuff_Secure(account->email_cipher);
+  if (account->platform_cipher)    DestroyByteBuff_Secure(account->platform_cipher);
+  if (account->note_cipher)        DestroyByteBuff_Secure(account->note_cipher);
+  if (account->iv)          DestroyByteBuff_Secure(account->iv);
+  if (account->lookup_salt) DestroyByteBuff_Secure(account->lookup_salt);
+  if (account->username_hash)    DestroyByteBuff_Secure(account->username_hash);
+  if (account->platform_hash)    DestroyByteBuff_Secure(account->platform_hash);
+  if (account->email_hash)       DestroyByteBuff_Secure(account->email_hash);
+  OPENSSL_cleanse(account, sizeof(EncryptedAccount_t));
+  free(account);
+  return ERROR_SUCCESS;
+}
 
 int EncryptAccount(Account_t *account
     ,EncryptedAccount_t **eac
@@ -328,9 +427,18 @@ int EncryptAccount(Account_t *account
   ByteBuff_t *password_cipher = NULL;
   ByteBuff_t *platform_cipher = NULL;
   ByteBuff_t *note_cipher = NULL;
-  // ByteBuff_t *username_hash;
-  // ByteBuff_t *platform_hash;
-  // ByteBuff_t *email_hash;
+  ByteBuff_t *username_hash = NULL;
+  ByteBuff_t *platform_hash = NULL;
+  ByteBuff_t *email_hash = NULL;
+  UserConfig_t *userconfig = NULL  ;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetUserConf(user,&userconfig)),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "error getting user config struct",
+      rc,
+      cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptByteBuff(account->username,
@@ -387,20 +495,71 @@ int EncryptAccount(Account_t *account
       rc,
       cleanup);
 
-  // ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-  //   (pkcs5_keyed_hash(
-  //     password_str,
-  //     password_len,
-  //     key,
-  //     ,
-  //     SALT_SIZE,
-  //     hashing_options_fetchers[userconfig.key_hashing_option_idx](),
-  //     EVP_MD_size(hashing_options_fetchers[userconfig.hashing_option_idx]()),
-  //     globalconf->key_derivation_iters)),
-  //   ERROR_SUCCESS,
-  //   ERROR_HASH_FAILED,
-  //   "failed to derive encryption key",
-  //   failure_hash);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_bytebuff(
+       account->username,
+       &username_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       account->lookup_salt,
+       hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash username for lookup",
+    rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_bytebuff(
+       account->platform,
+       &platform_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       account->lookup_salt,
+       hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash platform for lookup",
+    rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_bytebuff(
+       account->email,
+       &email_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       account->lookup_salt,
+       hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash email for lookup",
+    rc,cleanup);
+  
+  
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    
+     (InitEncryptedAccount(
+       eac,
+       username_cipher,
+       password_cipher,
+       email_cipher,
+       platform_cipher,
+       note_cipher,
+       account->iv,
+       account->lookup_salt,
+       username_hash,
+       platform_hash,
+       email_hash)
+     ),
+    ERROR_SUCCESS,
+    ERROR_ENCACCOUNT_INNIT_FAILURE,
+    "failed to initialize encrypted account",
+    rc,cleanup);
+
   rc = ERROR_SUCCESS;
   goto cleanup;
 
@@ -408,7 +567,13 @@ cleanup:
   if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
   if (password_cipher) DestroyByteBuff_Secure(password_cipher);
   if (email_cipher) DestroyByteBuff_Secure(email_cipher);
-  if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
+  if (username_cipher) DestroyByteBuff_Secure(username_cipher);
   if (note_cipher) DestroyByteBuff_Secure(note_cipher);
+  if (platform_hash) DestroyByteBuff_Secure(platform_hash);
+  if (username_hash) DestroyByteBuff_Secure(username_hash);
+  if (email_hash) DestroyByteBuff_Secure(email_hash);
+  if (userconfig) free(userconfig);
   return rc;
 }
+
+

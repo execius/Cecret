@@ -12,6 +12,7 @@ typedef struct GlobalConf_s {
   ByteBuff_t *backup_dir_path;
 
   uint32_t key_derivation_iters;  
+  uint32_t lookup_hash_iters;  
   uint32_t password_hashing_iters;
 }GlobalConf_t ;
 extern GlobalConf_t *globalconf;
