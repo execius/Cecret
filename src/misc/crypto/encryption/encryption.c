@@ -467,7 +467,8 @@ int decrypt(const EVP_CIPHER *type,
             int cipher_size,
             unsigned char *plain,
             int *plain_size
-            ){
+            )
+{
   ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");

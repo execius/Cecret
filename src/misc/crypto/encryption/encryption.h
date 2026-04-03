@@ -73,6 +73,18 @@ enum CryptoErrors{
 
 };
 
+int decrypt(const EVP_CIPHER *type,
+            const unsigned char*key,
+            const unsigned char *iv,
+            const unsigned char *cipher,
+            int cipher_size,
+            unsigned char *plain,
+            int *plain_size);
+int DecryptByteBuff(
+            const ByteBuff_t *cipher,
+            const ByteBuff_t *iv,
+            ByteBuff_t **plain,
+            user_t *user);
 extern cipher_func_t encryption_options_fetchers[];
 extern hash_func_t hashing_options_fetchers[];
 #endif /* ifndef ENRYPTION_H */

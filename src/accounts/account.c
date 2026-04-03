@@ -577,3 +577,117 @@ cleanup:
 }
 
 
+
+
+
+int DecryptAccount(EncryptedAccount_t *eac
+    ,Account_t **account
+    ,user_t *user)
+{
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+
+  int rc = 0;
+  ByteBuff_t *username = NULL;
+  ByteBuff_t *email = NULL;
+  ByteBuff_t *password = NULL;
+  ByteBuff_t *platform = NULL;
+  ByteBuff_t *note = NULL;
+  UserConfig_t *userconfig = NULL  ;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetUserConf(user,&userconfig)),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "error getting user config struct",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(eac->username_cipher,
+                       eac->iv,
+                       &username,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt username byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(eac->password_cipher,
+                       eac->iv,
+                       &password,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt password byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(eac->email_cipher,
+                       eac->iv,
+                       &email,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt email byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(eac->platform_cipher,
+                       eac->iv,
+                       &platform,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt platform byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(eac->note_cipher,
+                       eac->iv,
+                       &note,
+                       user)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt note byte buffer",
+      rc,
+      cleanup);
+
+  
+  
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    
+     (InitAccount(
+       account,
+       username,
+       password,
+       email,
+       platform,
+       note,
+       eac->lookup_salt,
+       eac->iv)
+     ),
+    ERROR_SUCCESS,
+    ERROR_ENCACCOUNT_INNIT_FAILURE,
+    "failed to initialize encrypted account",
+    rc,cleanup);
+
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+
+cleanup:
+  if (platform) DestroyByteBuff_Secure(platform);
+  if (password) DestroyByteBuff_Secure(password);
+  if (email) DestroyByteBuff_Secure(email);
+  if (username) DestroyByteBuff_Secure(username);
+  if (note) DestroyByteBuff_Secure(note);
+  if (userconfig) free(userconfig);
+  return rc;
+}
+
