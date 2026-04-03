@@ -9,7 +9,6 @@ typedef struct Account_s Account_t;
 #include "encryption.h"
 #include "hashing.h"
 #include "bytebuffer.h" 
-#include "bytebuffer.h" 
 #include "user.h" 
 
 int DestroyAccount(Account_t *account);
@@ -43,7 +42,7 @@ int InitEncryptedAccount(EncryptedAccount_t **account
 
 int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
     ByteBuff_t **username_hash);
-int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
+int EncryptedAccountGetPlatformHash(EncryptedAccount_t *eac,
     ByteBuff_t **platform_hash);
 int EncryptedAccountGetEmailHash(EncryptedAccount_t *eac,
     ByteBuff_t **email_hash);

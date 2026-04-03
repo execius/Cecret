@@ -416,7 +416,7 @@ int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
   ERROR_CHECK_SUCCESS_LOG(
       (HashingFieldGetText(eac->username_hash,username_hash)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_HASHINGFIELD_GETTEXT_FAILURE,
       "failed to get username_hash buff");
   return ERROR_SUCCESS;
 }
@@ -429,7 +429,7 @@ int EncryptedAccountGetPlatformHash(EncryptedAccount_t *eac,
   ERROR_CHECK_SUCCESS_LOG(
       (HashingFieldGetText(eac->platform_hash,platform_hash)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_HASHINGFIELD_GETTEXT_FAILURE,
       "failed to get platform_hash buff");
   return ERROR_SUCCESS;
 }
@@ -442,7 +442,7 @@ int EncryptedAccountGetEmailHash(EncryptedAccount_t *eac,
   ERROR_CHECK_SUCCESS_LOG(
       (HashingFieldGetText(eac->email_hash,email_hash)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_HASHINGFIELD_GETTEXT_FAILURE,
       "failed to get email_hash buff");
   return ERROR_SUCCESS;
 }
@@ -487,21 +487,27 @@ int EncryptAccount(Account_t *account
   ByteBuff_t *platform = NULL  ;
 
   
-  ERROR_CHECK_SUCCESS_LOG(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptionFieldGetText(account->username,&username)),
       ERROR_SUCCESS,
       ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get username buff");
-  ERROR_CHECK_SUCCESS_LOG(
+      "failed to get username buff",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptionFieldGetText(account->email,&email)),
       ERROR_SUCCESS,
       ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get email buff");
-  ERROR_CHECK_SUCCESS_LOG(
+      "failed to get email buff",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptionFieldGetText(account->platform,&platform)),
       ERROR_SUCCESS,
       ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get platform buff");
+      "failed to get platform buff",
+      rc,
+      cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetLookupSalt(user,&lookup_salt)),
       ERROR_SUCCESS,
@@ -617,7 +623,7 @@ ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
      pkcs5_keyed_hash_HashingField(
        username_hf,
        &username_hash,
-       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       EVP_MD_size(digest),
        digest,
        globalconf->lookup_hash_iters)
      ),
@@ -631,7 +637,7 @@ ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
      pkcs5_keyed_hash_HashingField(
        platform_hf,
        &platform_hash,
-       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       EVP_MD_size(digest),
        digest,
        globalconf->lookup_hash_iters)
      ),
@@ -644,7 +650,7 @@ ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
      pkcs5_keyed_hash_HashingField(
        email_hf,
        &email_hash,
-       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       EVP_MD_size(digest),
        digest,
        globalconf->lookup_hash_iters)
      ),
@@ -701,6 +707,7 @@ int DecryptAccount(EncryptedAccount_t *eac
     ,user_t *user)
 {
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
 
@@ -737,6 +744,7 @@ int DecryptAccount(EncryptedAccount_t *eac
       rc,
       cleanup);
 
+  type = encryption_options_fetchers[userconfig->encryption_option_idx]();
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DecryptEncryptionField(type,
                        eac->username_cipher,
