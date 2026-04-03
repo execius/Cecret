@@ -451,278 +451,376 @@ int EncryptedAccountGetEmailHash(EncryptedAccount_t *eac,
 
 
 
-// int EncryptAccount(Account_t *account
-//     ,EncryptedAccount_t **eac
-//     ,user_t *user)
-// {
-//   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-//   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-//
-//
-//   int rc = 0;
-//   ByteBuff_t *username_cipher = NULL;
-//   ByteBuff_t *email_cipher = NULL;
-//   ByteBuff_t *password_cipher = NULL;
-//   ByteBuff_t *platform_cipher = NULL;
-//   ByteBuff_t *note_cipher = NULL;
-//   ByteBuff_t *username_hash = NULL;
-//   ByteBuff_t *platform_hash = NULL;
-//   ByteBuff_t *email_hash = NULL;
-//   UserConfig_t *userconfig = NULL  ;
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (UserGetUserConf(user,&userconfig)),
-//       ERROR_SUCCESS,
-//       ERROR_GETUSRCONF_FAILURE,
-//       "error getting user config struct",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (EncryptByteBuff(account->username,
-//                        account->iv,
-//                        &username_cipher,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to encrypt username byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (EncryptByteBuff(account->password,
-//                        account->iv,
-//                        &password_cipher,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to encrypt password byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (EncryptByteBuff(account->email,
-//                        account->iv,
-//                        &email_cipher,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to encrypt email byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (EncryptByteBuff(account->platform,
-//                        account->iv,
-//                        &platform_cipher,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to encrypt platform byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (EncryptByteBuff(account->note,
-//                        account->iv,
-//                        &note_cipher,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to encrypt note byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//     (
-//      pkcs5_keyed_hash_bytebuff(
-//        account->username,
-//        &username_hash,
-//        EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
-//        account->lookup_salt,
-//        hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
-//        globalconf->lookup_hash_iters)
-//      ),
-//     ERROR_SUCCESS,
-//     ERROR_HASH_FAILED,
-//     "failed to hash username for lookup",
-//     rc,cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//     (
-//      pkcs5_keyed_hash_bytebuff(
-//        account->platform,
-//        &platform_hash,
-//        EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
-//        account->lookup_salt,
-//        hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
-//        globalconf->lookup_hash_iters)
-//      ),
-//     ERROR_SUCCESS,
-//     ERROR_HASH_FAILED,
-//     "failed to hash platform for lookup",
-//     rc,cleanup);
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//     (
-//      pkcs5_keyed_hash_bytebuff(
-//        account->email,
-//        &email_hash,
-//        EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
-//        account->lookup_salt,
-//        hashing_options_fetchers[userconfig->lookup_hashing_option_idx](),
-//        globalconf->lookup_hash_iters)
-//      ),
-//     ERROR_SUCCESS,
-//     ERROR_HASH_FAILED,
-//     "failed to hash email for lookup",
-//     rc,cleanup);
-//
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//
-//      (InitEncryptedAccount(
-//        eac,
-//        username_cipher,
-//        password_cipher,
-//        email_cipher,
-//        platform_cipher,
-//        note_cipher,
-//        account->iv,
-//        account->lookup_salt,
-//        username_hash,
-//        platform_hash,
-//        email_hash)
-//      ),
-//     ERROR_SUCCESS,
-//     ERROR_ENCACCOUNT_INNIT_FAILURE,
-//     "failed to initialize encrypted account",
-//     rc,cleanup);
-//
-//   rc = ERROR_SUCCESS;
-//   goto cleanup;
-//
-// cleanup:
-//   if (platform_cipher) DestroyByteBuff_Secure(platform_cipher);
-//   if (password_cipher) DestroyByteBuff_Secure(password_cipher);
-//   if (email_cipher) DestroyByteBuff_Secure(email_cipher);
-//   if (username_cipher) DestroyByteBuff_Secure(username_cipher);
-//   if (note_cipher) DestroyByteBuff_Secure(note_cipher);
-//   if (platform_hash) DestroyByteBuff_Secure(platform_hash);
-//   if (username_hash) DestroyByteBuff_Secure(username_hash);
-//   if (email_hash) DestroyByteBuff_Secure(email_hash);
-//   if (userconfig) free(userconfig);
-//   return rc;
-// }
+int EncryptAccount(Account_t *account
+    ,EncryptedAccount_t **eac
+    ,user_t *user)
+{
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
 
-// int DecryptAccount(EncryptedAccount_t *eac
-//     ,Account_t **account
-//     ,user_t *user)
-// {
-//   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-//   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-//
-//
-//   int rc = 0;
-//   ByteBuff_t *username = NULL;
-//   ByteBuff_t *email = NULL;
-//   ByteBuff_t *password = NULL;
-//   ByteBuff_t *platform = NULL;
-//   ByteBuff_t *note = NULL;
-//   UserConfig_t *userconfig = NULL  ;
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (UserGetUserConf(user,&userconfig)),
-//       ERROR_SUCCESS,
-//       ERROR_GETUSRCONF_FAILURE,
-//       "error getting user config struct",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (DecryptByteBuff(eac->username_cipher,
-//                        eac->iv,
-//                        &username,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to decrypt username byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (DecryptByteBuff(eac->password_cipher,
-//                        eac->iv,
-//                        &password,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to decrypt password byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (DecryptByteBuff(eac->email_cipher,
-//                        eac->iv,
-//                        &email,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to decrypt email byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (DecryptByteBuff(eac->platform_cipher,
-//                        eac->iv,
-//                        &platform,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to decrypt platform byte buffer",
-//       rc,
-//       cleanup);
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//       (DecryptByteBuff(eac->note_cipher,
-//                        eac->iv,
-//                        &note,
-//                        user)), 
-//       ERROR_SUCCESS,
-//       ERROR_ENCRYPTBYTEBUFF_FAILURE,
-//       "failed to decrypt note byte buffer",
-//       rc,
-//       cleanup);
-//
-//
-//
-//   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-//
-//      (InitAccount(
-//        account,
-//        username,
-//        password,
-//        email,
-//        platform,
-//        note,
-//        eac->lookup_salt,
-//        eac->iv)
-//      ),
-//     ERROR_SUCCESS,
-//     ERROR_ENCACCOUNT_INNIT_FAILURE,
-//     "failed to initialize encrypted account",
-//     rc,cleanup);
-//
-//   rc = ERROR_SUCCESS;
-//   goto cleanup;
-//
-// cleanup:
-//   if (platform) DestroyByteBuff_Secure(platform);
-//   if (password) DestroyByteBuff_Secure(password);
-//   if (email) DestroyByteBuff_Secure(email);
-//   if (username) DestroyByteBuff_Secure(username);
-//   if (note) DestroyByteBuff_Secure(note);
-//   if (userconfig) free(userconfig);
-//   return rc;
-// }
+  int rc = 0;
+  const EVP_CIPHER *type = NULL;
+  const EVP_MD *digest = NULL;
+  EncryptionField_t *username_cipher = NULL;
+  EncryptionField_t *email_cipher = NULL;
+  EncryptionField_t *password_cipher = NULL;
+  EncryptionField_t *platform_cipher = NULL;
+  EncryptionField_t *note_cipher = NULL;
+
+  /*temporary for hashing*/
+  HashingField_t *username_hf = NULL;
+  HashingField_t *platform_hf = NULL;
+  HashingField_t *email_hf = NULL;
+
+
+  HashingField_t *username_hash = NULL;
+  HashingField_t *platform_hash = NULL;
+  HashingField_t *email_hash = NULL;
+  UserConfig_t *userconfig = NULL  ;
+  HashingField_t *key_hf = NULL  ;
+  ByteBuff_t *lookup_salt = NULL  ;
+  ByteBuff_t *key = NULL  ;
+  ByteBuff_t *username = NULL  ;
+  ByteBuff_t *email = NULL  ;
+  ByteBuff_t *platform = NULL  ;
+
+  
+  ERROR_CHECK_SUCCESS_LOG(
+      (EncryptionFieldGetText(account->username,&username)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get username buff");
+  ERROR_CHECK_SUCCESS_LOG(
+      (EncryptionFieldGetText(account->email,&email)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get email buff");
+  ERROR_CHECK_SUCCESS_LOG(
+      (EncryptionFieldGetText(account->platform,&platform)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get platform buff");
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetLookupSalt(user,&lookup_salt)),
+      ERROR_SUCCESS,
+      ERROR_USER_GET_LOOKUPSALT,
+      "error getting user lookup_salt byte buffer",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetKey(user,&key_hf)),
+      ERROR_SUCCESS,
+      ERROR_USER_GET_KEY,
+      "error getting user key hashing field",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (HashingFieldGetText(key_hf,&key)),
+      ERROR_SUCCESS,
+      ERROR_HASHINGFIELD_GETTEXT_FAILURE,
+      "error getting user key byte buffer",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetUserConf(user,&userconfig)),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "error getting user config struct",
+      rc,
+      cleanup);
+  type = encryption_options_fetchers[userconfig->encryption_option_idx]();
+  digest = hashing_options_fetchers[userconfig->lookup_hashing_option_idx]();
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptEncryptionField(type,
+                              account->username,
+                              key,
+                              &username_cipher)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE,
+      "failed to encrypt username byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptEncryptionField(type,
+                              account->password,
+                              key,
+                              &password_cipher)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE,
+      "failed to encrypt password byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptEncryptionField(type,
+                              account->email,
+                              key,
+                              &email_cipher)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE,
+      "failed to encrypt email byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptEncryptionField(type,
+                              account->platform,
+                              key,
+                              &platform_cipher)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE,
+      "failed to encrypt platform byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptEncryptionField(type,
+                              account->note,
+                              key,
+                              &note_cipher)),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE,
+      "failed to encrypt note byte buffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitHashingField(&username_hf,
+                        username,
+                        lookup_salt)),
+      ERROR_SUCCESS,
+      ERROR_INITHASHINGFIELD_FAILURE,
+      "failed to initialize hashing field ",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitHashingField(&email_hf,
+                        email,
+                        lookup_salt)),
+      ERROR_SUCCESS,
+      ERROR_INITHASHINGFIELD_FAILURE,
+      "failed to initialize hashing field ",
+      rc,cleanup);
+ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitHashingField(&platform_hf,
+                    platform,
+                    lookup_salt)),
+      ERROR_SUCCESS,
+      ERROR_INITHASHINGFIELD_FAILURE,
+      "failed to initialize hashing field ",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_HashingField(
+       username_hf,
+       &username_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       digest,
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash username for lookup",
+    rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_HashingField(
+       platform_hf,
+       &platform_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       digest,
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash platform for lookup",
+    rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (
+     pkcs5_keyed_hash_HashingField(
+       email_hf,
+       &email_hash,
+       EVP_MD_size(hashing_options_fetchers[userconfig->lookup_hashing_option_idx]()),
+       digest,
+       globalconf->lookup_hash_iters)
+     ),
+    ERROR_SUCCESS,
+    ERROR_HASH_FAILED,
+    "failed to hash email for lookup",
+    rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+
+     (InitEncryptedAccount(
+       eac,
+       username_cipher,
+       password_cipher,
+       email_cipher,
+       platform_cipher,
+       note_cipher,
+       username_hash,
+       platform_hash,
+       email_hash)
+     ),
+    ERROR_SUCCESS,
+    ERROR_ENCACCOUNT_INNIT_FAILURE,
+    "failed to initialize encrypted account",
+    rc,cleanup);
+
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+
+cleanup:
+  if (platform_cipher) DestroyEncryptionField(platform_cipher);
+  if (password_cipher) DestroyEncryptionField(password_cipher);
+  if (email_cipher) DestroyEncryptionField(email_cipher);
+  if (username_cipher) DestroyEncryptionField(username_cipher);
+  if (note_cipher) DestroyEncryptionField(note_cipher);
+  if (platform_hash) DestroyHashingField(platform_hash);
+  if (username_hash) DestroyHashingField(username_hash);
+  if (email_hash) DestroyHashingField(email_hash);
+  if (platform_hf) DestroyHashingField(platform_hf);
+  if (username_hf) DestroyHashingField(username_hf);
+  if (email_hf) DestroyHashingField(email_hf);
+  if (key_hf) DestroyHashingField(key_hf);
+  if (key) DestroyByteBuff_Secure(key);
+  if (lookup_salt) DestroyByteBuff_Secure(lookup_salt);
+  if (username) DestroyByteBuff_Secure(username);
+  if (platform) DestroyByteBuff_Secure(platform);
+  if (email) DestroyByteBuff_Secure(email);
+  if (userconfig) free(userconfig);
+  return rc;
+}
+
+
+int DecryptAccount(EncryptedAccount_t *eac
+    ,Account_t **account
+    ,user_t *user)
+{
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+
+  const EVP_CIPHER *type = NULL;
+  int rc = 0;
+  EncryptionField_t *username = NULL;
+  EncryptionField_t *email = NULL;
+  EncryptionField_t *password = NULL;
+  EncryptionField_t *platform = NULL;
+  EncryptionField_t *note = NULL;
+  UserConfig_t *userconfig = NULL  ;
+  HashingField_t *key_hf = NULL  ;
+  ByteBuff_t *key = NULL  ;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetKey(user,&key_hf)),
+      ERROR_SUCCESS,
+      ERROR_USER_GET_KEY,
+      "error getting user key hashing field",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (HashingFieldGetText(key_hf,&key)),
+      ERROR_SUCCESS,
+      ERROR_HASHINGFIELD_GETTEXT_FAILURE,
+      "error getting user key byte buffer",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetUserConf(user,&userconfig)),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "error getting user config struct",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptEncryptionField(type,
+                       eac->username_cipher,
+                       key,
+                       &username)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt username enryption field",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptEncryptionField(type,
+                       eac->password_cipher,
+                       key,
+                       &password)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt password enryption field",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptEncryptionField(type,
+                       eac->email_cipher,
+                       key,
+                       &email)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt email enryption field",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptEncryptionField(type,
+                       eac->platform_cipher,
+                       key,
+                       &platform)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt platform enryption field",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptEncryptionField(type,
+                       eac->note_cipher,
+                       key,
+                       &note)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt note enryption field",
+      rc,
+      cleanup);
+
+
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+
+     (InitAccount(
+       account,
+       username,
+       password,
+       email,
+       platform,
+       note)
+     ),
+    ERROR_SUCCESS,
+    ERROR_ENCACCOUNT_INNIT_FAILURE,
+    "failed to initialize encrypted account",
+    rc,cleanup);
+
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+
+cleanup:
+  if (platform) DestroyEncryptionField(platform);
+  if (password) DestroyEncryptionField(password);
+  if (email) DestroyEncryptionField(email);
+  if (username) DestroyEncryptionField(username);
+  if (note) DestroyEncryptionField(note);
+  if (key) DestroyByteBuff_Secure(key);
+  if (key_hf) DestroyHashingField(key_hf);
+  if (userconfig) free(userconfig);
+  return rc;
+}
 

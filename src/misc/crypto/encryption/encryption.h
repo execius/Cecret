@@ -82,6 +82,11 @@ int DecryptByteBuff(
             const ByteBuff_t *iv,
             ByteBuff_t **plain,
             ByteBuff_t *tag);
+int DecryptEncryptionField(
+    const EVP_CIPHER *type,
+    const EncryptionField_t *cipher,
+    const ByteBuff_t *key,
+    EncryptionField_t **plain);
 
 int EncryptEncryptionField(
     const EVP_CIPHER *type,
@@ -93,12 +98,13 @@ enum CryptoencErrors{
   ERROR_ENCRYPTION_FAILURE = -5001,
   ERROR_ENCRYPTBYTEBUFF_FAILURE = -5002,
   ERROR_DECRYPTION_FAILURE = -5003,
-  ERROR_DECRYPTBYTEBUFF_FAILURE = -5002,
+  ERROR_DECRYPTBYTEBUFF_FAILURE = -5004,
 
-  ERROR_INITENCRYPTIONFIELD_FAILURE = -5004,
-  ERROR_CREATEENCRYPTIONFIELD_FAILURE = -5005,
+  ERROR_INITENCRYPTIONFIELD_FAILURE = -5005,
   ERROR_DUPENCRYPTIONFIELD_FAILURE = -5006,
-  ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE = -5007
+  ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE = -5007,
+  ERROR_CREATEENCRYPTIONFIELD_FAILURE = -5008,
+  ERROR_ENCRYPTENCRYPTIONFIELD_FAILURE = -5009
 
 };
 extern cipher_func_t encryption_options_fetchers[];

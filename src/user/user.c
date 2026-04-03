@@ -315,10 +315,20 @@ int UserGetDbPath(user_t *user, ByteBuff_t **user_db_path){
       (DupByteBuff(user_db_path,user->user_db_path)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate user db path buff");
+      "failed to duplicate lookup_salt buff");
   return ERROR_SUCCESS;
 }
 
+int UserGetLookupSalt(user_t *user, ByteBuff_t **lookup_salt){
+  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(lookup_salt,user->lookup_salt)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate user db path buff");
+  return ERROR_SUCCESS;
+}
 int UserGetUserConf(user_t *user,UserConfig_t **userconf){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(userconf,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
