@@ -2,6 +2,7 @@
 #define GLOBALCONF_H
 
 #include "encryption.h" 
+#include "hashing.h" 
 #include "bytebuffer.h" 
 typedef struct GlobalConf_s {
 

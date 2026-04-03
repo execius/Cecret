@@ -10,30 +10,26 @@ typedef struct user_s user_t;
 #include "encryption.h"
 
 
-int InitUser(user_t **user
-             ,ByteBuff_t *username
-             ,ByteBuff_t *hashed_pass
-             ,ByteBuff_t *key
-             ,ByteBuff_t *hmac_salt
-             ,ByteBuff_t *password_salt
-             ,ByteBuff_t *enc_salt
-             ,ByteBuff_t *user_db_path
-             ,UserConfig_t userconfig);
+int CreateUser(user_t **user
+    ,ByteBuff_t *username
+    ,ByteBuff_t *password
+    ,UserConfig_t userconfig);
 int DestroyUser(user_t *user);
 int SaveUserToDB(user_t *);
-int LoadUserFromDB(user_t *user,const char *username);
-int ChangeUserPass(user_t *);
+int LoadUserFromDB(user_t *user,const ByteBuff_t *username);
+int ChangeUserPass(user_t *usre,ByteBuff_t *newpassword);
 
 
 /*the value given by any of the following functions
- * in the second argument should be passed to free
- * and preferably cleared with OPENSSL_cleanse 
- * before that*/
+ * in the second argument should be passed to DestroyByteBuff_Secure 
+ * or DestroyHashingField depending on the type
+ * pass userconf to free , it has no sensitive data 
+ * */
 int UserGetUsername(user_t *user,ByteBuff_t **username);
-int UserGetKey(user_t *user,ByteBuff_t **key);
-int UserGetHmacSalt(user_t *user,ByteBuff_t **hmac_salt);
+int UserGetKey(user_t *user,HashingField_t **key);
+int UserGetLookupSalt(user_t *user,ByteBuff_t **lookup_salt);
 int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt);
-int UserGetHashedPass(user_t *user,ByteBuff_t **hashed_pass);
+int UserGetHashedPass(user_t *user,HashingField_t **hashed_pass);
 int UserGetDbPath(user_t *user, ByteBuff_t **user_db_path);
 int UserGetUserConf(user_t *user,UserConfig_t **userconf);
 

@@ -7,20 +7,20 @@ typedef struct EncryptedAccount_s EncryptedAccount_t;
 typedef struct Account_s Account_t;
 
 #include "encryption.h"
+#include "hashing.h"
 #include "bytebuffer.h" 
 #include "bytebuffer.h" 
 #include "user.h" 
 
 int DestroyAccount(Account_t *account);
 
-int InitAccount(Account_t **account 
+int CreateAccount(Account_t **account
     ,const ByteBuff_t *username
     ,const ByteBuff_t *password
     ,const ByteBuff_t *email
     ,const ByteBuff_t *platform
     ,const ByteBuff_t *note
-    ,const ByteBuff_t *lookup_salt
-    ,const ByteBuff_t *iv);
+    ,user_t *user);
 
 int AccountGetUsername(Account_t *account,ByteBuff_t **username);
 int AccountGetPassword(Account_t *account,ByteBuff_t **password);
@@ -31,16 +31,14 @@ int AccountGetNote(Account_t *account,ByteBuff_t **note);
 
 int DestroyEncryptedAccount(EncryptedAccount_t *account);
 int InitEncryptedAccount(EncryptedAccount_t **account 
-    ,const ByteBuff_t *username_cipher
-    ,const ByteBuff_t *password_cipher
-    ,const ByteBuff_t *email_cipher
-    ,const ByteBuff_t *platform_cipher
-    ,const ByteBuff_t *note_cipher
-    ,const ByteBuff_t *iv
-    ,const ByteBuff_t *lookup_salt
-    ,const ByteBuff_t *username_hash
-    ,const ByteBuff_t *platform_hash
-    ,const ByteBuff_t *email_hash);
+    ,const EncryptionField_t *username_cipher
+    ,const EncryptionField_t *password_cipher
+    ,const EncryptionField_t *email_cipher
+    ,const EncryptionField_t *platform_cipher
+    ,const EncryptionField_t *note_cipher
+    ,const HashingField_t *username_hash
+    ,const HashingField_t *platform_hash
+    ,const HashingField_t *email_hash);
 
 
 int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,

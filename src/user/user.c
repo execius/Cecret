@@ -4,42 +4,36 @@ typedef struct user_s {
   ByteBuff_t *username;
   ByteBuff_t *user_db_path;
 
-  ByteBuff_t *hashed_pass;
-  ByteBuff_t *key;
+  HashingField_t *hashed_pass;
+  HashingField_t *key;
   /*used for lookup*/
-  ByteBuff_t *hmac_salt;
-  ByteBuff_t *password_salt;
-  ByteBuff_t *enc_salt;
+  ByteBuff_t *lookup_salt;
   UserConfig_t userconf;
 } user_t;
 
 int InitUser(user_t **user
              ,ByteBuff_t *username
-             ,ByteBuff_t *hashed_pass
-             ,ByteBuff_t *key
-             ,ByteBuff_t *hmac_salt
-             ,ByteBuff_t *password_salt
-             ,ByteBuff_t *enc_salt
+             ,HashingField_t *hashed_pass
+             ,HashingField_t *key
+             ,ByteBuff_t *lookup_salt
              ,ByteBuff_t *user_db_path
              ,UserConfig_t userconfig)
 {
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(hashed_pass,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(hmac_salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(password_salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(user_db_path,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   int rc = 0;
   *user = NULL;
   MALLOC_CHECK_NULL_LOG(*user,sizeof(user_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate user");
 
-  (*user)->hmac_salt = NULL;
+  (*user)->lookup_salt = NULL;
   (*user)->user_db_path = NULL;
   (*user)->hashed_pass = NULL;
   (*user)->key = NULL;
-  (*user)->password_salt = NULL;
-  (*user)->enc_salt = NULL;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->username,username)), ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
@@ -54,37 +48,17 @@ int InitUser(user_t **user
 
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupByteBuff(&(*user)->hashed_pass,hashed_pass)),
+      (DupHashingField(&(*user)->hashed_pass,key)),
       ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hashed pass bytebuffer",
+      ERROR_DUPHASHINGFIELD_FAILURE,
+      "failed to duplicate hashed_pass hashing field",
       rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupByteBuff(&(*user)->password_salt,password_salt)),
+      (DupHashingField(&(*user)->key,key)),
       ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate password_salt salt buff",
-      rc,cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupByteBuff(&(*user)->hmac_salt,hmac_salt)),
-      ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff",
-      rc,cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupByteBuff(&(*user)->key,key)),
-      ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate key buff",
-      rc,cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupByteBuff(&(*user)->enc_salt,enc_salt)),
-      ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate enc_salt buff",
+      ERROR_DUPHASHINGFIELD_FAILURE,
+      "failed to duplicate key hashing field",
       rc,cleanup);
   memcpy(&(*user)->userconf,&userconfig,sizeof(UserConfig_t));
 
@@ -109,80 +83,53 @@ int CreateUser(user_t **user
   ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   *user = NULL;
   int rc;
-  char *password_str = NULL;
-  int password_len = 0;
-  unsigned char hmac_salt[SALT_SIZE];
-  unsigned char password_salt[SALT_SIZE];
-  unsigned char enc_salt[SALT_SIZE];
-  unsigned char hashed_pass[STRMAX];
-  unsigned char key[STRMAX];
-  ByteBuff_t *hmac_salt_buf = NULL,
-             *password_salt_buf = NULL,
-             *user_db_path = NULL,
-             *hashed_pass_buf = NULL,
-             *enc_salt_buf = NULL,
-             *key_buf = NULL; 
 
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-    (RAND_bytes(
-      hmac_salt,
-      SALT_SIZE)),
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "failed to generate hmac salt",
-    rc,cleanup);
-
-
+  HashingField_t *hashed_pass_hf = NULL,
+                 *key_hf = NULL,
+                 *password_hash_hf = NULL,
+                 *password_key_hf = NULL;
+  ByteBuff_t *lookup_salt = NULL;
+  ByteBuff_t *user_db_path = NULL;
+  unsigned char *lookup_salt_buf = NULL;
+  MALLOC_CHECK_NULL_LOG(lookup_salt_buf,
+      SALT_SIZE,
+      ERROR_MEMORY_ALLOCATION,
+      "error allocating memory for account lookup salt");
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (RAND_bytes(
-                  password_salt,
-                  SALT_SIZE)
-      ),
+                  lookup_salt_buf,
+                  SALT_SIZE
+                 )),
       LIBSSL_SUCCESS,
       ERROR_LIBSSL_FAILURE,
-      "failed to generate hmac salt",
-      rc,cleanup);
+      "failed to generate lookup salt",
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-    (RAND_bytes(
-      enc_salt,
-      SALT_SIZE)),
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "failed to generate encryption salt",
-    rc,cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetBuffByteBuff(password
-                       ,(unsigned char **) &password_str)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETBUFF_FAILURE,
-      "failed to get password buffer from bytebuffer struct",
-      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetLenByteBuff(password
-                       ,(size_t *) &password_len)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETLEN_FAILURE,
-      "failed to get password lenght from bytebuffer struct",
-      rc,cleanup);
 
   
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-    (pkcs5_keyed_hash(
-      password_str,
-      password_len,
-      hashed_pass,
-      password_salt,
-      SALT_SIZE,
-      hashing_options_fetchers[userconfig.hashing_option_idx](),
+      (CreateHashingField(&password_hash_hf,
+                    password)),
+      ERROR_SUCCESS,
+      ERROR_INITHASHINGFIELD_FAILURE,
+      "failed to create password_hash hashing field",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateHashingField(&password_key_hf,
+                    password)),
+      ERROR_SUCCESS,
+      ERROR_INITHASHINGFIELD_FAILURE,
+      "failed to create password_key hashing field",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (pkcs5_keyed_hash_HashingField(
+      password_hash_hf,
+      &hashed_pass_hf,
       EVP_MD_size(hashing_options_fetchers[userconfig.hashing_option_idx]()),
+      hashing_options_fetchers[userconfig.hashing_option_idx](),
       globalconf->password_hashing_iters)),
     ERROR_SUCCESS,
     ERROR_HASH_FAILED,
@@ -190,14 +137,11 @@ int CreateUser(user_t **user
     rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-    (pkcs5_keyed_hash(
-      password_str,
-      password_len,
-      key,
-      enc_salt,
-      SALT_SIZE,
-      hashing_options_fetchers[userconfig.key_hashing_option_idx](),
+    (pkcs5_keyed_hash_HashingField(
+      password_key_hf,
+      &key_hf,
       EVP_MD_size(hashing_options_fetchers[userconfig.key_hashing_option_idx]()),
+      hashing_options_fetchers[userconfig.key_hashing_option_idx](),
       globalconf->key_derivation_iters)),
     ERROR_SUCCESS,
     ERROR_HASH_FAILED,
@@ -259,59 +203,24 @@ int CreateUser(user_t **user
       rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(&hashed_pass_buf,
-                    hashed_pass,
-                    EVP_MD_size(
-                      hashing_options_fetchers[userconfig.hashing_option_idx]()))),
+      (InitByteBuff(&lookup_salt,
+                    lookup_salt_buf,
+                    SALT_SIZE)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for hashed pass",
-      rc,cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(&key_buf,
-                    key,
-                    EVP_MD_size(
-                      hashing_options_fetchers[userconfig.key_hashing_option_idx]()))),
-      ERROR_SUCCESS,
-      ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for key",
-      rc,cleanup);
+      "failed to initialize byte buffer for lookup_salt",
+      rc,
+      cleanup);
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(&hmac_salt_buf,
-                    hmac_salt,
-                    SALT_SIZE)),
-      ERROR_SUCCESS,
-      ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for hmac salt",
-      rc,cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(&password_salt_buf,
-                    password_salt,
-                    SALT_SIZE)),
-      ERROR_SUCCESS,
-      ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for password salt",
-      rc,cleanup);
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(&enc_salt_buf,
-                    enc_salt,
-                    SALT_SIZE)),
-      ERROR_SUCCESS,
-      ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for enryption salt",
-      rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
     (InitUser(
       user,
       username,
-      hashed_pass_buf,
-      key_buf,
-      hmac_salt_buf,
-      password_salt_buf,
-      enc_salt_buf,
+      hashed_pass_hf,
+      key_hf,
+      lookup_salt,
       user_db_path,
       userconfig)),
     ERROR_SUCCESS,
@@ -321,32 +230,24 @@ int CreateUser(user_t **user
 
   rc = ERROR_SUCCESS;
 cleanup:
-  if (hmac_salt_buf) DestroyByteBuff_Secure(hmac_salt_buf);
-  if (enc_salt_buf) DestroyByteBuff_Secure(enc_salt_buf);
-  if (hashed_pass_buf) DestroyByteBuff_Secure(hashed_pass_buf);
-  if (key_buf) DestroyByteBuff_Secure(key_buf);
-  if (password_salt_buf)DestroyByteBuff_Secure(password_salt_buf);
+  if (lookup_salt) DestroyByteBuff_Secure(lookup_salt);
+  if (hashed_pass_hf) DestroyHashingField(hashed_pass_hf);
+  if (key_hf) DestroyHashingField(key_hf);
   if (user_db_path)DestroyByteBuff_Secure(user_db_path);
-  if (password_str){ 
-    OPENSSL_cleanse(password_str,password_len);
-    free(password_str);
+  if (lookup_salt_buf){
+    OPENSSL_cleanse(lookup_salt_buf,SALT_SIZE);
+    free(lookup_salt_buf);
   }
-  OPENSSL_cleanse(hmac_salt, sizeof(hmac_salt));
-  OPENSSL_cleanse(key, sizeof(key));
-  OPENSSL_cleanse(password_salt, sizeof(password_salt));
-  OPENSSL_cleanse(enc_salt, sizeof(enc_salt));
-  OPENSSL_cleanse(hashed_pass, sizeof(hashed_pass));
   return rc;
 
 }
 int DestroyUser(user_t *user){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  if (user->hashed_pass) DestroyByteBuff_Secure(user->hashed_pass);
-  if (user->password_salt) DestroyByteBuff_Secure(user->password_salt);
-  if (user->hmac_salt) DestroyByteBuff_Secure(user->hmac_salt);
-  if (user->user_db_path) DestroyByteBuff_Secure(user->user_db_path);
   if (user->username) DestroyByteBuff_Secure(user->username);
-  if (user->key) DestroyByteBuff_Secure(user->key);
+  if (user->hashed_pass) DestroyHashingField(user->hashed_pass);
+  if (user->key) DestroyHashingField(user->key);
+  if (user->lookup_salt) DestroyByteBuff_Secure(user->lookup_salt);
+  if (user->user_db_path) DestroyByteBuff_Secure(user->user_db_path);
 
   OPENSSL_cleanse(user, sizeof(user_t));
   free(user);
@@ -358,7 +259,7 @@ int LoadUser(user_t *user,const char *username){
 int SaveUser(user_t *user){
   return ERROR_SUCCESS;
 }
-int ChangeUserPass(user_t *user){
+int ChangeUserPass(user_t *usre,ByteBuff_t *newpassword){
   return ERROR_SUCCESS;
 }
 
@@ -372,47 +273,36 @@ int UserGetUsername(user_t *user,ByteBuff_t **username){
       "failed to duplicate username buff");
   return ERROR_SUCCESS;
 }
-int UserGetKey(user_t *user,ByteBuff_t **key){
+int UserGetKey(user_t *user,HashingField_t **key){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (DupByteBuff(key,user->key)),
+      (DupHashingField(key,user->key)),
       ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate key buff");
+      ERROR_DUPHASHINGFIELD_FAILURE,
+      "failed to duplicate key hashing field");
   return ERROR_SUCCESS;
 }
-int UserGetHmacSalt(user_t *user,ByteBuff_t **hmac_salt){
+int UserGetHmacSalt(user_t *user,ByteBuff_t **lookup_salt){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  ERROR_CHECK_NULL_LOG(hmac_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
 
   ERROR_CHECK_SUCCESS_LOG(
-      (DupByteBuff(hmac_salt,user->hmac_salt)),
+      (DupByteBuff(lookup_salt,user->lookup_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hmac_salt buff");
-  return ERROR_SUCCESS;
-}
-int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt){
-  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  ERROR_CHECK_NULL_LOG(password_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-      (DupByteBuff(password_salt,user->password_salt)),
-      ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate password_salt buff");
-
+      "failed to duplicate lookup_salt buff");
   return ERROR_SUCCESS;
 }
 
-int UserGetHashedPass(user_t *user,ByteBuff_t **hashed_pass){
+int UserGetHashedPass(user_t *user,HashingField_t **hashed_pass){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(hashed_pass,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (DupByteBuff(hashed_pass,user->hashed_pass)),
+      (DupHashingField(hashed_pass,user->hashed_pass)),
       ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate hashed pass buff");
+      ERROR_DUPHASHINGFIELD_FAILURE,
+      "failed to duplicate hashed password hashing field");
 
     return ERROR_SUCCESS;
 

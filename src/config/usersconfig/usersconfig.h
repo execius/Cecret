@@ -3,6 +3,7 @@
 #include "includes.h"
 typedef struct UserConfig_s  UserConfig_t;  
 #include "encryption.h"
+#include "hashing.h" 
 
 typedef struct UserConfig_s {
   Encryption_options_idx encryption_option_idx;

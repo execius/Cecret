@@ -1,221 +1,237 @@
 #include "encryption.h" 
 
+typedef struct EncryptionField_s {
+  ByteBuff_t *text;
+  ByteBuff_t *iv;
+  ByteBuff_t *tag; //for AEAD
+} EncryptionField_t ;
 
-cipher_func_t encryption_options_fetchers[] = {
-[AES_256_CTR] = EVP_aes_256_ctr,
-[AES_192_CTR] = EVP_aes_192_ctr,
-[AES_128_CTR] = EVP_aes_128_ctr,
-[CHACHA20]    = EVP_chacha20,
-[CAMELLIA_256_CTR] = EVP_camellia_256_ctr,
-[CAMELLIA_192_CTR] = EVP_camellia_192_ctr,
-[CAMELLIA_128_CTR] = EVP_camellia_128_ctr
-};
 
-hash_func_t hashing_options_fetchers[] = {
-[SHA_512] = EVP_sha512,
-[SHA_384] = EVP_sha384,
-[SHA_256] = EVP_sha256
-};
+int InitEncryptionField(EncryptionField_t **ef,
+    const ByteBuff_t *text,
+    const ByteBuff_t *iv,
+    const ByteBuff_t *tag) {
+  ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
-int pkcs5_keyed_hash(const char *master,
-                     int  master_size,
-                     unsigned char *key,
-                     unsigned char *salt,
-                     int salt_size,
-                     const EVP_MD *digest,
-                     int key_size,
-                     uint32_t iters) {
-  ERROR_CHECK_NULL_LOG(master,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(digest,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-  (PKCS5_PBKDF2_HMAC(master, 
-                     master_size,
-                     salt,
-                     salt_size ,
-                     iters,
-                     digest,
-                     key_size,
-                     key)),
-
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "the hash function failed");
-  
-  return ERROR_SUCCESS;
-} 
-
-int pkcs5_keyed_hash_bytebuff(
-    const ByteBuff_t *master,
-    ByteBuff_t **key,
-    size_t key_size,
-    const ByteBuff_t *salt,
-    const EVP_MD *digest,
-    uint32_t iters)
-{
-  ERROR_CHECK_NULL_LOG(master,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(digest,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-
-  unsigned char *master_str = NULL;
-  unsigned char *salt_str = NULL;
-  unsigned char *key_str = NULL;
-  int master_size = 0;
-  int salt_size = 0;
   int rc = 0;
 
-  MALLOC_CHECK_NULL_LOG(key_str,
-      key_size,
+  MALLOC_CHECK_NULL_LOG(*ef,sizeof(EncryptionField_t),ERROR_MEMORY_ALLOCATION,
+      "cannot allocate encryption field");
+  (*ef)->text = NULL;
+  (*ef)->iv = NULL;
+  (*ef)->tag = NULL;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*ef)->text,text)), ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate text bytebuffer",
+      rc,cleanup);
+ 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*ef)->iv,iv)), ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate iv bytebuffer",
+      rc,cleanup);
+
+  if (tag){
+    ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+        (DupByteBuff(&(*ef)->tag,tag)), ERROR_SUCCESS,
+        ERROR_BUFFDUP_FAILURE,
+        "failed to duplicate tag bytebuffer",
+        rc,cleanup);
+  }
+  return ERROR_SUCCESS;
+cleanup:
+  DestroyEncryptionField(*ef);
+  *ef = NULL;
+  return rc;
+}
+
+
+
+int CreateEncryptionField(EncryptionField_t **ef,
+    const ByteBuff_t *text,
+    user_t *user) {
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+  ByteBuff_t *iv_buf = NULL ;
+  unsigned char *iv = NULL;
+  UserConfig_t *userconf =  NULL;
+  int rc = 0 , iv_len = 0;
+
+  MALLOC_CHECK_NULL_LOG(*ef,sizeof(EncryptionField_t),ERROR_MEMORY_ALLOCATION,
+      "cannot allocate encryption field");
+  (*ef)->text = NULL;
+  (*ef)->iv = NULL;
+  (*ef)->tag = NULL;
+
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (UserGetUserConf(user,&userconf)),
+      ERROR_SUCCESS,
+      ERROR_GETUSRCONF_FAILURE,
+      "error getting user config struct",
+      rc,
+      cleanup);
+
+
+  iv_len= EVP_CIPHER_get_iv_length(
+      encryption_options_fetchers[userconf->encryption_option_idx]());
+
+  MALLOC_CHECK_NULL_LOG(iv,
+      iv_len,
       ERROR_MEMORY_ALLOCATION,
-      "cannot allocate for key_str");
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetLenByteBuff(master
-         ,(size_t *) &master_size)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETLEN_FAILURE,
-      "failed to get master size from bytebuffer struct",
-      rc,cleanup);
+      "error allocating memory for account IV");
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetLenByteBuff(salt
-         ,(size_t *) &salt_size)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETLEN_FAILURE,
-      "failed to get salt size from bytebuffer struct",
-      rc,cleanup);
-
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetBuffByteBuff(salt
-                       ,(unsigned char **) &salt_str)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETBUFF_FAILURE,
-      "failed to get salt buffer from bytebuffer struct",
-      rc,cleanup);
+      (RAND_bytes(
+                  iv,
+                  iv_len
+                 )),
+      LIBSSL_SUCCESS,
+      ERROR_LIBSSL_FAILURE,
+      "failed to generate iv",
+      rc,
+      cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (
-       GetBuffByteBuff(master
-                       ,&master_str)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETBUFF_FAILURE,
-      "failed to get master buffer from bytebuffer struct",
-      rc,cleanup);
-
-
-  ERROR_CHECK_SUCCESS_LOG(
-  (PKCS5_PBKDF2_HMAC((char *)master_str, 
-                     master_size,
-                     salt_str,
-                     salt_size ,
-                     iters,
-                     digest,
-                     key_size,
-                     key_str)),
-
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "the hash function failed");
-  
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitByteBuff(key,
-                    key_str,
-                    key_size)),
+      (InitByteBuff(&iv_buf,
+                    iv,
+                    (size_t)iv_len)),
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
-      "failed to initialize byte buffer for hash",
-      rc,cleanup);
-  rc =  ERROR_SUCCESS;
-  goto cleanup;
-
-cleanup:
-
-  if (master_str){ 
-    OPENSSL_cleanse(master_str,master_size);
-    free(master_str);
-  }
-
-  if (salt_str){ 
-    OPENSSL_cleanse(salt_str,salt_size);
-    free(salt_str);
-  }
-
-  if (key_str){ 
-    OPENSSL_cleanse(key_str,key_size);
-    free(key_str);
-  }
-  return rc;
-
-} 
-
-
-
-
-
-
-
-
-
-int hash_not_keyed(const unsigned char *plain,
-                  size_t plain_size,
-                  const EVP_MD *type 
-                  ,unsigned char *hash
-                  ,unsigned int *hash_size){
-  ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(hash,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(hash_size,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-
-  EVP_MD_CTX *ctx = EVP_MD_CTX_new(); 
-  ERROR_CHECK_NULL_LOG(ctx,ERROR_LIBSSL_FAILURE,"context initialization failed");
-
-  int rc = 0;
-  ERROR_CHECK_SUCCESS_LOG(
-    
-  (EVP_DigestInit_ex(
-    ctx,
-    type,
-    NULL)),
-
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "digest init failed");
-  
-  ERROR_CHECK_SUCCESS_LOG(
-  (EVP_DigestUpdate(ctx,
-                    plain,
-                    plain_size)),
-
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "digest update failed");
+      "failed to initialize byte buffer for iv",
+      rc,
+      cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-  (EVP_DigestFinal_ex(ctx,
-                      hash,
-                      hash_size)),
-
-    LIBSSL_SUCCESS,
-    ERROR_LIBSSL_FAILURE,
-    "digest final failed",
-    rc,cleanup);
-
-  rc = ERROR_SUCCESS;
-  goto cleanup;
+      (InitEncryptionField(
+                           ef
+                           ,text
+                           ,iv_buf
+                           ,NULL)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize encryption field",
+      rc,
+      cleanup);
+  return ERROR_SUCCESS;
 cleanup:
-  EVP_MD_CTX_free(ctx);
+  if (iv){
+    OPENSSL_cleanse(iv,iv_len);
+    free(iv);
+  }
+  if (iv_buf){
+    DestroyByteBuff_Secure(iv_buf);
+  }
+  if (userconf) free(userconf);
   return rc;
-
 }
+
+int DupEncryptionField(EncryptionField_t **dst,
+    const EncryptionField_t *src) {
+  ERROR_CHECK_NULL_LOG(src,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(dst,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+  int rc = 0;
+
+  MALLOC_CHECK_NULL_LOG(*dst,sizeof(EncryptionField_t),ERROR_MEMORY_ALLOCATION,
+      "cannot allocate encryption field");
+  (*dst)->text = NULL;
+  (*dst)->iv = NULL;
+  (*dst)->tag = NULL;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*dst)->text,src->text)), ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate text bytebuffer",
+      rc,cleanup);
+ 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DupByteBuff(&(*dst)->iv,src->iv)), ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate iv bytebuffer",
+      rc,cleanup);
+
+  
+  if (src->tag){
+    ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+        (DupByteBuff(&(*dst)->tag,src->tag)), ERROR_SUCCESS,
+        ERROR_BUFFDUP_FAILURE,
+        "failed to duplicate tag bytebuffer",
+        rc,cleanup);
+  }
+
+  return ERROR_SUCCESS;
+cleanup:
+  DestroyEncryptionField(*dst);
+  *dst = NULL;
+  return rc;
+}
+
+
+int DestroyEncryptionField(EncryptionField_t *ef){
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+  if (ef->text) DestroyByteBuff_Secure(ef->text);
+  if (ef->iv) DestroyByteBuff_Secure(ef->iv);
+  if (ef->tag) DestroyByteBuff_Secure(ef->tag);
+
+  OPENSSL_cleanse(ef, sizeof(EncryptionField_t));
+  free(ef);
+  return ERROR_SUCCESS;
+}
+
+int EncryptionFieldGetText(const EncryptionField_t *ef,ByteBuff_t **text){
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(text,ef->text)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate text buff");
+  return ERROR_SUCCESS;
+}
+
+int EncryptionFieldGetIv(const EncryptionField_t *ef,ByteBuff_t **iv){
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(iv,ef->iv)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate iv buff");
+  return ERROR_SUCCESS;
+}
+
+int EncryptionFieldGetTag(const EncryptionField_t *ef,ByteBuff_t **tag){
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(tag,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(ef->tag,ERROR_NULL_VALUE_GIVEN,"tag is NULL");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(tag,ef->tag)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate tag buff");
+  return ERROR_SUCCESS;
+}
+
+
+
+
+
+cipher_func_t encryption_options_fetchers[] = {
+[AES_256_GCM] = EVP_aes_256_gcm,
+[AES_192_GCM] = EVP_aes_192_gcm,
+[AES_128_GCM] = EVP_aes_128_gcm,
+[CHACHA20_POLY1305]    = EVP_chacha20_poly1305,
+};
+
+
+
 
 
 int encrypt(const EVP_CIPHER *type,
@@ -224,7 +240,8 @@ int encrypt(const EVP_CIPHER *type,
             const unsigned char *plain,
             int plain_size,
             unsigned char *cipher,
-            int *cipher_size
+            int *cipher_size,
+            unsigned char *tag
             ){
   ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -278,14 +295,25 @@ int encrypt(const EVP_CIPHER *type,
   *cipher_size += cipher_size_tmp;
 
 
-  /*+512 just in case*/
-  cipher_max = plain_size +block_size+512;
+  cipher_max = plain_size +block_size;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (*cipher_size > cipher_max),
     1,
     ERROR_BUF_OVERFLOW,
     "cipher buffer overflowed",
     rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+  (EVP_CIPHER_CTX_ctrl(ctx, 
+                       EVP_CTRL_AEAD_GET_TAG,
+                       TAG_SIZE,
+                       tag)
+   ),
+    LIBSSL_SUCCESS,
+    ERROR_LIBSSL_FAILURE,
+    "tag retrieval failed",
+    rc,cleanup);
+
 
   rc = ERROR_SUCCESS;
   goto cleanup;
@@ -306,34 +334,29 @@ cleanup:
 // int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl);
 //
 int EncryptByteBuff(
+            const EVP_CIPHER *type,
             const ByteBuff_t *plain,
+            const ByteBuff_t *key,
             const ByteBuff_t *iv,
             ByteBuff_t **cipher,
-            user_t *user)
+            ByteBuff_t **tag)
 {
-  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(tag,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   unsigned char *key_str = NULL;
   unsigned char *iv_str = NULL;
   unsigned char *plain_str = NULL;
   unsigned char *cipher_str = NULL;
-  UserConfig_t *userconfig = NULL;
+  unsigned char *tag_str = NULL;
   int plain_size = 0;
   int cipher_size = 0;
   int iv_size = 0;
   int cipher_max = 0;
   int rc = 0;
-  ByteBuff_t *key = NULL;
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (UserGetUserConf(user
-                       ,&userconfig)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETUSRCONF_FAILURE,
-      "failed to get userconfig from user",
-      rc,cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetLenByteBuff(plain
                        ,(size_t *)&plain_size)
@@ -351,22 +374,16 @@ int EncryptByteBuff(
       "failed to get iv len from byte buff",
       rc,cleanup);
 
-  /*+512 just in case*/
-  cipher_max = plain_size +EVP_CIPHER_get_block_size(
-      encryption_options_fetchers[userconfig->encryption_option_idx]())+512;
+  cipher_max = plain_size +EVP_CIPHER_get_block_size(type);
   MALLOC_CHECK_NULL_LOG(cipher_str,
       cipher_max,
       ERROR_MEMORY_ALLOCATION,
       "cannot allocate for cipher str");
 
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (UserGetKey(user,
-                       &key)), 
-      ERROR_SUCCESS,
-      ERROR_USER_GET_KEY,
-      "error gettingn key from user ",
-      rc,cleanup);
+  MALLOC_CHECK_NULL_LOG(tag_str,
+      TAG_SIZE,
+      ERROR_MEMORY_ALLOCATION,
+      "cannot allocate for tag str");
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetBuffByteBuff(key
@@ -398,13 +415,14 @@ int EncryptByteBuff(
 
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (encrypt(encryption_options_fetchers[userconfig->encryption_option_idx]()
+      (encrypt(type
                ,key_str
                ,iv_str
                ,plain_str
                ,plain_size
                ,cipher_str
                ,&cipher_size
+               ,tag_str
       )),
       ERROR_SUCCESS,
       ERROR_ENCRYPTION_FAILURE,
@@ -422,12 +440,25 @@ int EncryptByteBuff(
       "failed to get init encrypted cipher byte buff",
       rc,cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitByteBuff(tag
+                    ,tag_str
+                    ,TAG_SIZE)
+      ),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to get init tag byte buff",
+      rc,cleanup);
   rc = ERROR_SUCCESS;
   goto cleanup;
 cleanup:
   if (cipher_str) {
     OPENSSL_cleanse(cipher_str,cipher_size);
     free(cipher_str);
+  }
+  if (tag_str) {
+    OPENSSL_cleanse(tag_str,TAG_SIZE);
+    free(tag_str);
   }
   if (plain_str) {
     OPENSSL_cleanse(plain_str,plain_size);
@@ -437,15 +468,59 @@ cleanup:
     OPENSSL_cleanse(iv_str,iv_size);
     free(iv_str);
   }
-  if (userconfig) {
-    OPENSSL_cleanse(userconfig,sizeof(UserConfig_t));
-    free(userconfig);
-  }
   return rc;
-
-
 }
 
+
+int EncryptEncryptionField(
+    const EVP_CIPHER *type,
+    const EncryptionField_t *plain,
+    const ByteBuff_t *key,
+    EncryptionField_t **cipher)
+{
+  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ByteBuff_t *cipher_buf = NULL;
+  int rc = 0;
+  ByteBuff_t *tag = NULL;
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptByteBuff(type
+                       ,plain->text
+                       ,key
+                       ,plain->iv
+                       ,&cipher_buf
+                       ,&tag)
+      ),
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTBYTEBUFF_FAILURE,
+      "failed to encrypt byte buff",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitEncryptionField(
+                           cipher
+                           ,cipher_buf
+                           ,plain->iv
+                           ,tag)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize encryption field",
+      rc,
+      cleanup);
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+cleanup:
+  if (cipher_buf) {
+    DestroyByteBuff_Secure(cipher_buf);
+  }
+  if (tag) {
+    DestroyByteBuff_Secure(tag);
+  }
+  return rc;
+}
 
 
 
@@ -466,8 +541,8 @@ int decrypt(const EVP_CIPHER *type,
             const unsigned char *cipher,
             int cipher_size,
             unsigned char *plain,
-            int *plain_size
-            )
+            int *plain_size,
+            unsigned char *tag)
 {
   ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -475,10 +550,10 @@ int decrypt(const EVP_CIPHER *type,
   ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(plain_size,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(tag,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   ERROR_CHECK_NULL_LOG(ctx,ERROR_NULL_VALUE_GIVEN,"cannot get context");
 
-  int block_size = EVP_CIPHER_block_size(type);
   int plain_size_tmp = 0;
   int plain_max = 0;
   int rc = 0;
@@ -495,6 +570,7 @@ int decrypt(const EVP_CIPHER *type,
     ERROR_LIBSSL_FAILURE,
     "decrypt init failed",
     rc,cleanup);
+  EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, TAG_SIZE, tag);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (EVP_DecryptUpdate(ctx,
@@ -521,8 +597,7 @@ int decrypt(const EVP_CIPHER *type,
   *plain_size += plain_size_tmp;
 
 
-  /*+512 just in case*/
-  plain_max = cipher_size - block_size+512;
+  plain_max = cipher_size ;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
   (*plain_size > plain_max),
     1,
@@ -542,34 +617,30 @@ cleanup:
 
 
 int DecryptByteBuff(
+            const EVP_CIPHER *type,
             const ByteBuff_t *cipher,
+            const ByteBuff_t *key,
             const ByteBuff_t *iv,
             ByteBuff_t **plain,
-            user_t *user)
+            ByteBuff_t *tag)
 {
-  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(iv,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(tag,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   unsigned char *key_str = NULL;
   unsigned char *iv_str = NULL;
   unsigned char *plain_str = NULL;
   unsigned char *cipher_str = NULL;
+  unsigned char *tag_str = NULL;
   UserConfig_t *userconfig = NULL;
   int plain_size = 0;
   int cipher_size = 0;
   int iv_size = 0;
   int plain_max = 0;
   int rc = 0;
-  ByteBuff_t *key = NULL;
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (UserGetUserConf(user
-                       ,&userconfig)
-      ),
-      ERROR_SUCCESS,
-      ERROR_GETUSRCONF_FAILURE,
-      "failed to get userconfig from user",
-      rc,cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetLenByteBuff(cipher
                        ,(size_t *)&cipher_size)
@@ -587,21 +658,24 @@ int DecryptByteBuff(
       "failed to get iv len from byte buff",
       rc,cleanup);
 
-  /*+512 just in case*/
-  plain_max = cipher_size -EVP_CIPHER_get_block_size(
-      encryption_options_fetchers[userconfig->encryption_option_idx]())+512;
+  plain_max = cipher_size;
   MALLOC_CHECK_NULL_LOG(plain_str,
       plain_max,
       ERROR_MEMORY_ALLOCATION,
       "cannot allocate for plain str");
 
+  MALLOC_CHECK_NULL_LOG(tag_str,
+      TAG_SIZE,
+      ERROR_MEMORY_ALLOCATION,
+      "cannot allocate for tag str");
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (UserGetKey(user,
-                       &key)), 
+      (GetBuffByteBuff(tag
+                       ,(unsigned char **)&tag_str)
+      ),
       ERROR_SUCCESS,
-      ERROR_USER_GET_KEY,
-      "error gettingn key from user ",
+      ERROR_GETBUFF_FAILURE,
+      "failed to get tag  str from byte buff",
       rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
@@ -641,6 +715,7 @@ int DecryptByteBuff(
                ,cipher_size
                ,plain_str
                ,&plain_size
+               ,tag_str
       )),
       ERROR_SUCCESS,
       ERROR_DECRYPTION_FAILURE,
@@ -665,6 +740,10 @@ cleanup:
     OPENSSL_cleanse(cipher_str,cipher_size);
     free(cipher_str);
   }
+  if (tag_str) {
+    OPENSSL_cleanse(tag_str,TAG_SIZE);
+    free(tag_str);
+  }
   if (plain_str) {
     OPENSSL_cleanse(plain_str,plain_size);
     free(plain_str);
@@ -678,8 +757,54 @@ cleanup:
     free(userconfig);
   }
   return rc;
-
-
 }
 
+
+int DecryptEncryptionField(
+    const EVP_CIPHER *type,
+    const EncryptionField_t *cipher,
+    const ByteBuff_t *key,
+    EncryptionField_t **plain)
+{
+
+  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(plain,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+
+  int rc = 0;
+  ByteBuff_t *plain_buf = NULL;
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DecryptByteBuff(type
+                       ,cipher->text
+                       ,key
+                       ,cipher->iv
+                       ,&plain_buf
+                       ,cipher->tag
+                       )
+      ),
+      ERROR_SUCCESS,
+      ERROR_DECRYPTBYTEBUFF_FAILURE,
+      "failed to decrypt byte buff",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitEncryptionField(
+                           plain
+                           ,plain_buf
+                           ,cipher->iv
+                           ,NULL)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize encryption field",
+      rc,
+      cleanup);
+  rc = ERROR_SUCCESS;
+  goto cleanup;
+cleanup:
+  if (plain_buf) {
+    DestroyByteBuff_Secure(plain_buf);
+  }
+  return rc;
+}
 
