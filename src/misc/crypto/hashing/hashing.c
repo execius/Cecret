@@ -47,6 +47,8 @@ int CreateHashingField(HashingField_t **hf,
   ByteBuff_t *salt_buf = NULL ;
   unsigned char *salt = NULL;
   int rc = 0 ;
+  MALLOC_CHECK_NULL_LOG(salt,SALT_SIZE,ERROR_MEMORY_ALLOCATION,
+      "cannot allocate encryption field");
 
   MALLOC_CHECK_NULL_LOG(*hf,sizeof(HashingField_t),ERROR_MEMORY_ALLOCATION,
       "cannot allocate encryption field");
@@ -75,8 +77,7 @@ int CreateHashingField(HashingField_t **hf,
       rc,
       cleanup);
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitHashingField(
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG( (InitHashingField(
                            hf
                            ,text
                            ,salt_buf)

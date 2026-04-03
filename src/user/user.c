@@ -48,7 +48,7 @@ int InitUser(user_t **user
 
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupHashingField(&(*user)->hashed_pass,key)),
+      (DupHashingField(&(*user)->hashed_pass,hashed_pass)),
       ERROR_SUCCESS,
       ERROR_DUPHASHINGFIELD_FAILURE,
       "failed to duplicate hashed_pass hashing field",
@@ -199,7 +199,7 @@ int CreateUser(user_t **user
        ),
       ERROR_SUCCESS,
       ERROR_APPENDSTRBUFF_FAILED,
-      "failed to append 'users' while building user db path",
+      "failed to append '.db' while building user db path",
       rc,cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
@@ -281,17 +281,6 @@ int UserGetKey(user_t *user,HashingField_t **key){
       ERROR_SUCCESS,
       ERROR_DUPHASHINGFIELD_FAILURE,
       "failed to duplicate key hashing field");
-  return ERROR_SUCCESS;
-}
-int UserGetHmacSalt(user_t *user,ByteBuff_t **lookup_salt){
-  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-
-  ERROR_CHECK_SUCCESS_LOG(
-      (DupByteBuff(lookup_salt,user->lookup_salt)),
-      ERROR_SUCCESS,
-      ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate lookup_salt buff");
   return ERROR_SUCCESS;
 }
 
