@@ -262,9 +262,62 @@ int DestroyAccount(Account_t *account){
 }
 
 
+int AccountGetUsername(Account_t *account,ByteBuff_t **username){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(username,account->username)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate username buff");
+  return ERROR_SUCCESS;
+}
 
 
+int AccountGetPassword(Account_t *account,ByteBuff_t **password){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(password,account->password)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate password buff");
+  return ERROR_SUCCESS;
+}
 
+int AccountGetEmail(Account_t *account,ByteBuff_t **email){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(email,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(email,account->email)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate email buff");
+  return ERROR_SUCCESS;
+}
+
+int AccountGetPlatform(Account_t *account,ByteBuff_t **platform){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(platform,account->platform)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate platform buff");
+  return ERROR_SUCCESS;
+}
+
+
+int AccountGetNote(Account_t *account,ByteBuff_t **note){
+  ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(note,account->note)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate note buff");
+  return ERROR_SUCCESS;
+}
 
 /*encrypted account stuff*/
 
@@ -412,6 +465,50 @@ int DestroyEncryptedAccount(EncryptedAccount_t *account){
   free(account);
   return ERROR_SUCCESS;
 }
+
+
+int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
+    ByteBuff_t **username_hash)
+{
+  ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(username_hash,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(username_hash,eac->username_hash)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate username_hash buff");
+  return ERROR_SUCCESS;
+}
+
+int EncryptedAccountGetPlatformHash(EncryptedAccount_t *eac,
+    ByteBuff_t **platform_hash)
+{
+  ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(platform_hash,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(platform_hash,eac->platform_hash)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate platform_hash buff");
+  return ERROR_SUCCESS;
+}
+
+int EncryptedAccountGetEmailHash(EncryptedAccount_t *eac,
+    ByteBuff_t **email_hash)
+{
+  ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(email_hash,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_SUCCESS_LOG(
+      (DupByteBuff(email_hash,eac->email_hash)),
+      ERROR_SUCCESS,
+      ERROR_BUFFDUP_FAILURE,
+      "failed to duplicate email_hash buff");
+  return ERROR_SUCCESS;
+}
+
+
+
+
 
 int EncryptAccount(Account_t *account
     ,EncryptedAccount_t **eac
@@ -575,9 +672,6 @@ cleanup:
   if (userconfig) free(userconfig);
   return rc;
 }
-
-
-
 
 
 int DecryptAccount(EncryptedAccount_t *eac
