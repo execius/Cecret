@@ -14,6 +14,11 @@ enum SqliteInterErrors{
   ERROR_SQLITE_FAILURE = -4001,
 };
 
+int insert_config(sqlite3 *userdb
+    ,const ByteBuff_t *username
+    ,const HashingField_t *hashed_pass
+    ,const ByteBuff_t *lookup_salt
+    ,const UserConfig_t *userconfig);
   const char *master_db_template =
     "\
 CREATE TABLE master (\

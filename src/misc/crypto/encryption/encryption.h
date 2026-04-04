@@ -83,6 +83,11 @@ int DecryptByteBuff(
             const ByteBuff_t *iv,
             ByteBuff_t **plain,
             const ByteBuff_t *tag);
+int DeserializeEncryptionField(EncryptionField_t **ef,
+    const ByteBuff_t *in);
+int SerializeEncryptionField(const EncryptionField_t *ef
+    ,ByteBuff_t **out);
+
 int DecryptEncryptionField(
     const EVP_CIPHER *type,
     const EncryptionField_t *cipher,
@@ -100,6 +105,7 @@ enum CryptoencErrors{
   ERROR_ENCRYPTBYTEBUFF_FAILURE = -5002,
   ERROR_DECRYPTION_FAILURE = -5003,
   ERROR_DECRYPTBYTEBUFF_FAILURE = -5004,
+  ERROR_SERIALIZEENCRYPTIONFIELD_FAILURE = -5012,
 
   ERROR_INITENCRYPTIONFIELD_FAILURE = -5005,
   ERROR_DUPENCRYPTIONFIELD_FAILURE = -5006,
