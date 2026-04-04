@@ -43,14 +43,15 @@ CREATE TABLE configs (\
 id INTEGER PRIMARY KEY CHECK (id = 1),\
 username TEXT NOT NULL ,\
 hashed_pass BLOB NOT NULL ,\
-enc_salt BLOB NOT NULL ,\
-hmac_salt BLOB NOT NULL ,\
+lookup_salt BLOB NOT NULL ,\
 \
-encryption_algorithm_enum INTEGER ,\
+encryption_option_idx INTEGER ,\
 \
-hashing_algorithm_enum INTEGER ,\
+hashing_option_idx INTEGER ,\
 \
-keyed_hashing_algorithm_enum INTEGER );WITHOUT ROWID";
+key_hashing_option_idx INTEGER ,\
+\
+lookup_hashing_option_idx INTEGER );WITHOUT ROWID";
 
 
 #endif /* ifndef MACRO */

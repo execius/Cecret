@@ -17,19 +17,19 @@ typedef struct EncryptedAccount_s {
 } EncryptedAccount_t;
 
 typedef struct Account_s {
-  EncryptionField_t *username;
-  EncryptionField_t *email;
-  EncryptionField_t *password;
-  EncryptionField_t *platform;
-  EncryptionField_t *note;
+  ByteBuff_t *username;
+  ByteBuff_t *email;
+  ByteBuff_t *password;
+  ByteBuff_t *platform;
+  ByteBuff_t *note;
 }Account_t ;
 
 int InitAccount(Account_t **account 
-    ,const EncryptionField_t *username
-    ,const EncryptionField_t *password
-    ,const EncryptionField_t *email
-    ,const EncryptionField_t *platform
-    ,const EncryptionField_t *note)
+    ,const ByteBuff_t *username
+    ,const ByteBuff_t *password
+    ,const ByteBuff_t *email
+    ,const ByteBuff_t *platform
+    ,const ByteBuff_t *note)
 {
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -47,46 +47,43 @@ int InitAccount(Account_t **account
   (*account)->note = NULL;
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupEncryptionField(&(*account)->username,username)), 
-      ERROR_SUCCESS,
-      ERROR_DUPENCRYPTIONFIELD_FAILURE,
-      "failed to duplicate username encryption field",
+  (DupByteBuff(&(*account)->username,username)), 
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate username bytebuffer",
       rc,
       cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupEncryptionField(&(*account)->password,password)), 
-      ERROR_SUCCESS,
-      ERROR_DUPENCRYPTIONFIELD_FAILURE,
-      "failed to duplicate password encryption field",
+  (DupByteBuff(&(*account)->password,password)), 
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate password bytebuffer",
       rc,
       cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupEncryptionField(&(*account)->email,email)), 
-      ERROR_SUCCESS,
-      ERROR_DUPENCRYPTIONFIELD_FAILURE,
-      "failed to duplicate email encryption field",
+  (DupByteBuff(&(*account)->email,email)), 
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate email bytebuffer",
       rc,
       cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupEncryptionField(&(*account)->platform,platform)), 
-      ERROR_SUCCESS,
-      ERROR_DUPENCRYPTIONFIELD_FAILURE,
-      "failed to duplicate platform encryption field",
+  (DupByteBuff(&(*account)->platform,platform)), 
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate platform bytebuffer",
       rc,
       cleanup);
-
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (DupEncryptionField(&(*account)->note,note)), 
-      ERROR_SUCCESS,
-      ERROR_DUPENCRYPTIONFIELD_FAILURE,
-      "failed to duplicate note encryption field",
+  (DupByteBuff(&(*account)->note,note)), 
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate note bytebuffer",
       rc,
       cleanup);
-
-
 
 
   rc = ERROR_SUCCESS;
@@ -99,122 +96,13 @@ cleanup:
   return rc;
 }
 
-int CreateAccount(Account_t **account
-    ,const ByteBuff_t *username
-    ,const ByteBuff_t *password
-    ,const ByteBuff_t *email
-    ,const ByteBuff_t *platform
-    ,const ByteBuff_t *note
-    ,user_t *user)
-{
-  ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(email,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  int rc = 0;
-
-  EncryptionField_t *username_ef = NULL;
-  EncryptionField_t *password_ef = NULL;
-  EncryptionField_t *email_ef = NULL;
-  EncryptionField_t *platform_ef = NULL;
-  EncryptionField_t *note_ef = NULL;
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (CreateEncryptionField(&username_ef,
-                    username,
-                    user)),
-      ERROR_SUCCESS,
-      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
-      "failed to create encryption field for username",
-      rc,
-      cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (CreateEncryptionField(&password_ef,
-                    password,
-                    user)),
-      ERROR_SUCCESS,
-      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
-      "failed to create encryption field for password",
-      rc,
-      cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (CreateEncryptionField(&email_ef,
-                    email,
-                    user)),
-      ERROR_SUCCESS,
-      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
-      "failed to create encryption field for email",
-      rc,
-      cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (CreateEncryptionField(&platform_ef,
-                    platform,
-                    user)),
-      ERROR_SUCCESS,
-      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
-      "failed to create encryption field for platform",
-      rc,
-      cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (CreateEncryptionField(&note_ef,
-                    note,
-                    user)),
-      ERROR_SUCCESS,
-      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
-      "failed to create encryption field for note",
-      rc,
-      cleanup);
-
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (InitAccount(account,
-                   username_ef,
-                   password_ef,
-                   email_ef,
-                   platform_ef,
-                   note_ef)
-       ),
-      ERROR_SUCCESS,
-      ERROR_ACCOUNT_INNIT_FAILURE,
-      "failed to initialize account",
-      rc,
-      cleanup);
-
-  rc = ERROR_SUCCESS;
-  goto cleanup;
-cleanup:
-  if (username_ef) 
-    DestroyEncryptionField(username_ef);
-  if (password_ef) 
-    DestroyEncryptionField(password_ef);
-  if (email_ef) 
-    DestroyEncryptionField(email_ef);
-  if (platform_ef) 
-    DestroyEncryptionField(platform_ef);
-  if (note_ef) 
-    DestroyEncryptionField(note_ef);
-  // if (lookup_salt){
-  //   OPENSSL_cleanse(lookup_salt,SALT_SIZE);
-  //   free(lookup_salt);
-  // }
-  // if (lookup_salt_buf){
-  //   DestroyByteBuff_Secure(lookup_salt_buf);
-  // }
-  // if (userconf) free(userconf);
-  return rc;
-}
 int DestroyAccount(Account_t *account){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
-  if (account->username)    DestroyEncryptionField(account->username);
-  if (account->password)    DestroyEncryptionField(account->password);
-  if (account->email)       DestroyEncryptionField(account->email);
-  if (account->platform)    DestroyEncryptionField(account->platform);
-  if (account->note)        DestroyEncryptionField(account->note);
+  if (account->username)    DestroyByteBuff_Secure(account->username);
+  if (account->password)    DestroyByteBuff_Secure(account->password);
+  if (account->email)       DestroyByteBuff_Secure(account->email);
+  if (account->platform)    DestroyByteBuff_Secure(account->platform);
+  if (account->note)        DestroyByteBuff_Secure(account->note);
   OPENSSL_cleanse(account, sizeof(Account_t));
   free(account);
   return ERROR_SUCCESS;
@@ -225,9 +113,9 @@ int AccountGetUsername(Account_t *account,ByteBuff_t **username){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (EncryptionFieldGetText(account->username,username)),
+      (DupByteBuff(username,account->username)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_GETBUFF_FAILURE,
       "failed to get username buff");
   return ERROR_SUCCESS;
 }
@@ -237,9 +125,9 @@ int AccountGetPassword(Account_t *account,ByteBuff_t **password){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (EncryptionFieldGetText(account->password,password)),
+      (DupByteBuff(password,account->password)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_GETBUFF_FAILURE,
       "failed to get password buff");
   return ERROR_SUCCESS;
 }
@@ -248,9 +136,9 @@ int AccountGetEmail(Account_t *account,ByteBuff_t **email){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(email,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (EncryptionFieldGetText(account->email,email)),
+      (DupByteBuff(email,account->email)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_GETBUFF_FAILURE,
       "failed to get email buff");
   return ERROR_SUCCESS;
 }
@@ -259,9 +147,9 @@ int AccountGetPlatform(Account_t *account,ByteBuff_t **platform){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (EncryptionFieldGetText(account->platform,platform)),
+      (DupByteBuff(platform,account->platform)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_GETBUFF_FAILURE,
       "failed to get platform buff");
   return ERROR_SUCCESS;
 }
@@ -271,9 +159,9 @@ int AccountGetNote(Account_t *account,ByteBuff_t **note){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
-      (EncryptionFieldGetText(account->note,note)),
+      (DupByteBuff(note,account->note)),
       ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      ERROR_GETBUFF_FAILURE,
       "failed to get note buff");
   return ERROR_SUCCESS;
 }
@@ -463,6 +351,12 @@ int EncryptAccount(Account_t *account
   int rc = 0;
   const EVP_CIPHER *type = NULL;
   const EVP_MD *digest = NULL;
+  EncryptionField_t *username_ef = NULL;
+  EncryptionField_t *email_ef = NULL;
+  EncryptionField_t *password_ef = NULL;
+  EncryptionField_t *platform_ef = NULL;
+  EncryptionField_t *note_ef = NULL;
+
   EncryptionField_t *username_cipher = NULL;
   EncryptionField_t *email_cipher = NULL;
   EncryptionField_t *password_cipher = NULL;
@@ -482,32 +376,9 @@ int EncryptAccount(Account_t *account
   HashingField_t *key_hf = NULL  ;
   ByteBuff_t *lookup_salt = NULL  ;
   ByteBuff_t *key = NULL  ;
-  ByteBuff_t *username = NULL  ;
-  ByteBuff_t *email = NULL  ;
-  ByteBuff_t *platform = NULL  ;
+
 
   
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (EncryptionFieldGetText(account->username,&username)),
-      ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get username buff",
-      rc,
-      cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (EncryptionFieldGetText(account->email,&email)),
-      ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get email buff",
-      rc,
-      cleanup);
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (EncryptionFieldGetText(account->platform,&platform)),
-      ERROR_SUCCESS,
-      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
-      "failed to get platform buff",
-      rc,
-      cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetLookupSalt(user,&lookup_salt)),
       ERROR_SUCCESS,
@@ -540,8 +411,55 @@ int EncryptAccount(Account_t *account
   digest = hashing_options_fetchers[userconfig->lookup_hashing_option_idx]();
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateEncryptionField(type,
+                              &username_ef,
+                              account->username)),
+      ERROR_SUCCESS,
+      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
+      "failed to create username encryption field",
+      rc,
+      cleanup);
+  
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateEncryptionField(type,
+                              &password_ef,
+                              account->password)),
+      ERROR_SUCCESS,
+      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
+      "failed to create password encryption field",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateEncryptionField(type,
+                              &email_ef,
+                              account->email)),
+      ERROR_SUCCESS,
+      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
+      "failed to create email encryption field",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateEncryptionField(type,
+                              &platform_ef,
+                              account->platform)),
+      ERROR_SUCCESS,
+      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
+      "failed to create platform encryption field",
+      rc,
+      cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (CreateEncryptionField(type,
+                              &note_ef,
+                              account->note)),
+      ERROR_SUCCESS,
+      ERROR_CREATEENCRYPTIONFIELD_FAILURE,
+      "failed to create note encryption field",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptEncryptionField(type,
-                              account->username,
+                              username_ef,
                               key,
                               &username_cipher)),
       ERROR_SUCCESS,
@@ -552,7 +470,7 @@ int EncryptAccount(Account_t *account
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptEncryptionField(type,
-                              account->password,
+                              password_ef,
                               key,
                               &password_cipher)),
       ERROR_SUCCESS,
@@ -563,7 +481,7 @@ int EncryptAccount(Account_t *account
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptEncryptionField(type,
-                              account->email,
+                              email_ef,
                               key,
                               &email_cipher)),
       ERROR_SUCCESS,
@@ -574,7 +492,7 @@ int EncryptAccount(Account_t *account
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptEncryptionField(type,
-                              account->platform,
+                              platform_ef,
                               key,
                               &platform_cipher)),
       ERROR_SUCCESS,
@@ -585,7 +503,7 @@ int EncryptAccount(Account_t *account
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (EncryptEncryptionField(type,
-                              account->note,
+                              note_ef,
                               key,
                               &note_cipher)),
       ERROR_SUCCESS,
@@ -596,7 +514,7 @@ int EncryptAccount(Account_t *account
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitHashingField(&username_hf,
-                        username,
+                        account->username,
                         lookup_salt)),
       ERROR_SUCCESS,
       ERROR_INITHASHINGFIELD_FAILURE,
@@ -604,7 +522,7 @@ int EncryptAccount(Account_t *account
       rc,cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitHashingField(&email_hf,
-                        email,
+                        account->email,
                         lookup_salt)),
       ERROR_SUCCESS,
       ERROR_INITHASHINGFIELD_FAILURE,
@@ -612,7 +530,7 @@ int EncryptAccount(Account_t *account
       rc,cleanup);
 ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (InitHashingField(&platform_hf,
-                    platform,
+                    account->platform,
                     lookup_salt)),
       ERROR_SUCCESS,
       ERROR_INITHASHINGFIELD_FAILURE,
@@ -685,6 +603,11 @@ cleanup:
   if (email_cipher) DestroyEncryptionField(email_cipher);
   if (username_cipher) DestroyEncryptionField(username_cipher);
   if (note_cipher) DestroyEncryptionField(note_cipher);
+  if (platform_ef) DestroyEncryptionField(platform_ef);
+  if (password_ef) DestroyEncryptionField(password_ef);
+  if (email_ef) DestroyEncryptionField(email_ef);
+  if (username_ef) DestroyEncryptionField(username_ef);
+  if (note_ef) DestroyEncryptionField(note_ef);
   if (platform_hash) DestroyHashingField(platform_hash);
   if (username_hash) DestroyHashingField(username_hash);
   if (email_hash) DestroyHashingField(email_hash);
@@ -694,10 +617,9 @@ cleanup:
   if (key_hf) DestroyHashingField(key_hf);
   if (key) DestroyByteBuff_Secure(key);
   if (lookup_salt) DestroyByteBuff_Secure(lookup_salt);
-  if (username) DestroyByteBuff_Secure(username);
-  if (platform) DestroyByteBuff_Secure(platform);
-  if (email) DestroyByteBuff_Secure(email);
-  if (userconfig) free(userconfig);
+  if (account->username) DestroyByteBuff_Secure(account->username);
+  if (account->platform) DestroyByteBuff_Secure(account->platform);
+  if (account->email) DestroyByteBuff_Secure(account->email);
   return rc;
 }
 
@@ -721,6 +643,11 @@ int DecryptAccount(EncryptedAccount_t *eac
   UserConfig_t *userconfig = NULL  ;
   HashingField_t *key_hf = NULL  ;
   ByteBuff_t *key = NULL  ;
+  ByteBuff_t *username_bb = NULL;
+  ByteBuff_t *email_bb = NULL;
+  ByteBuff_t *password_bb = NULL;
+  ByteBuff_t *platform_bb = NULL;
+  ByteBuff_t *note_bb = NULL;
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (UserGetKey(user,&key_hf)),
@@ -800,17 +727,62 @@ int DecryptAccount(EncryptedAccount_t *eac
       rc,
       cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptionFieldGetText(username,
+                       &username_bb)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get username bytebuffer",
+      rc,
+      cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptionFieldGetText(password,
+                       &password_bb)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get password bytebuffer",
+      rc,
+      cleanup);
+
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptionFieldGetText(platform,
+                       &platform_bb)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get platform bytebuffer",
+      rc,
+      cleanup);
+
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptionFieldGetText(email,
+                       &email_bb)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get email bytebuffer",
+      rc,
+      cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (EncryptionFieldGetText(note,
+                       &note_bb)), 
+      ERROR_SUCCESS,
+      ERROR_ENCRYPTIONFIELD_GETTEXT_FAILURE,
+      "failed to get note bytebuffer",
+      rc,
+      cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
 
      (InitAccount(
        account,
-       username,
-       password,
-       email,
-       platform,
-       note)
+       username_bb,
+       password_bb,
+       email_bb,
+       platform_bb,
+       note_bb)
      ),
     ERROR_SUCCESS,
     ERROR_ENCACCOUNT_INNIT_FAILURE,
@@ -827,6 +799,11 @@ cleanup:
   if (username) DestroyEncryptionField(username);
   if (note) DestroyEncryptionField(note);
   if (key) DestroyByteBuff_Secure(key);
+  if (username_bb) DestroyByteBuff_Secure(username_bb);
+  if (password_bb) DestroyByteBuff_Secure(password_bb);
+  if (platform_bb) DestroyByteBuff_Secure(username_bb);
+  if (email_bb) DestroyByteBuff_Secure(email_bb);
+  if (note_bb) DestroyByteBuff_Secure(note_bb);
   if (key_hf) DestroyHashingField(key_hf);
   if (userconfig) free(userconfig);
   return rc;

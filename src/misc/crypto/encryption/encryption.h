@@ -26,9 +26,10 @@ typedef enum {
 
 /*this deals with setting the txt and 
  * generating the IV , the tag is made at encryption*/
-int CreateEncryptionField(EncryptionField_t **ef,
-    const ByteBuff_t *text,
-    user_t *user) ;
+int CreateEncryptionField(
+    const EVP_CIPHER *type,
+    EncryptionField_t **ef,
+    const ByteBuff_t *text);
 
 
 /*only copies tag if it's not null*/

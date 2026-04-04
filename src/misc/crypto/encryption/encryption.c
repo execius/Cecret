@@ -51,15 +51,15 @@ cleanup:
 
 
 
-int CreateEncryptionField(EncryptionField_t **ef,
-    const ByteBuff_t *text,
-    user_t *user) {
+int CreateEncryptionField(
+    const EVP_CIPHER *type,
+    EncryptionField_t **ef,
+    const ByteBuff_t *text) {
   ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
   ByteBuff_t *iv_buf = NULL ;
   unsigned char *iv = NULL;
-  UserConfig_t *userconf =  NULL;
   int rc = 0 , iv_len = 0;
 
   MALLOC_CHECK_NULL_LOG(*ef,sizeof(EncryptionField_t),ERROR_MEMORY_ALLOCATION,
@@ -69,17 +69,9 @@ int CreateEncryptionField(EncryptionField_t **ef,
   (*ef)->tag = NULL;
 
 
-  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (UserGetUserConf(user,&userconf)),
-      ERROR_SUCCESS,
-      ERROR_GETUSRCONF_FAILURE,
-      "error getting user config struct",
-      rc,
-      cleanup);
 
 
-  iv_len= EVP_CIPHER_get_iv_length(
-      encryption_options_fetchers[userconf->encryption_option_idx]());
+  iv_len= EVP_CIPHER_get_iv_length(type);
 
   MALLOC_CHECK_NULL_LOG(iv,
       iv_len,
@@ -127,7 +119,6 @@ cleanup:
   if (iv_buf){
     DestroyByteBuff_Secure(iv_buf);
   }
-  if (userconf) free(userconf);
   return rc;
 }
 
