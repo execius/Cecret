@@ -15,8 +15,6 @@ int CreateUser(user_t **user
     ,ByteBuff_t *password
     ,UserConfig_t userconfig);
 int DestroyUser(user_t *user);
-int SaveUserToDB(user_t *);
-int LoadUserFromDB(user_t *user,const ByteBuff_t *username);
 int ChangeUserPass(user_t *usre,ByteBuff_t *newpassword);
 
 
@@ -25,13 +23,12 @@ int ChangeUserPass(user_t *usre,ByteBuff_t *newpassword);
  * or DestroyHashingField depending on the type
  * pass userconf to free , it has no sensitive data 
  * */
-int UserGetUsername(user_t *user,ByteBuff_t **username);
-int UserGetKey(user_t *user,HashingField_t **key);
-int UserGetLookupSalt(user_t *user,ByteBuff_t **lookup_salt);
-int UserGetPasswordSalt(user_t *user,ByteBuff_t **password_salt);
-int UserGetHashedPass(user_t *user,HashingField_t **hashed_pass);
-int UserGetDbPath(user_t *user, ByteBuff_t **user_db_path);
-int UserGetUserConf(user_t *user,UserConfig_t **userconf);
+int UserGetUsername(const user_t *user,ByteBuff_t **username);
+int UserGetKey(const user_t *user,HashingField_t **key);
+int UserGetLookupSalt(const user_t *user,ByteBuff_t **lookup_salt);
+int UserGetHashedPass(const user_t *user,HashingField_t **hashed_pass);
+int UserGetDbPath(const user_t *user, ByteBuff_t **user_db_path);
+int UserGetUserConf(const user_t *user,UserConfig_t **userconf);
 
 enum  UserErrors
 { 
@@ -40,7 +37,8 @@ enum  UserErrors
   ERROR_GETUSRCONF_FAILURE = -3002,
   ERROR_USER_GET_DBPATH = -3003,
   ERROR_USER_GET_KEY = -3004,
-  ERROR_USER_GET_LOOKUPSALT = -3004
+  ERROR_USER_GET_LOOKUPSALT = -3005,
+  ERROR_USER_GET_HASHED_PASS = -3006
 
 };
 

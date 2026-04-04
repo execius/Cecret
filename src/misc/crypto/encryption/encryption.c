@@ -55,6 +55,7 @@ int CreateEncryptionField(
     const EVP_CIPHER *type,
     EncryptionField_t **ef,
     const ByteBuff_t *text) {
+  ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
@@ -345,16 +346,17 @@ int EncryptByteBuff(
   unsigned char *tag_str = NULL;
   int plain_size = 0;
   int cipher_size = 0;
+  int key_size = 0;
   int iv_size = 0;
   int cipher_max = 0;
   int rc = 0;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (GetLenByteBuff(plain
-                       ,(size_t *)&plain_size)
+      (GetLenByteBuff(key
+                       ,(size_t *)&key_size)
       ),
       ERROR_SUCCESS,
       ERROR_GETLEN_FAILURE,
-      "failed to get plain len from byte buff",
+      "failed to get key len from byte buff",
       rc,cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetLenByteBuff(iv
@@ -363,6 +365,26 @@ int EncryptByteBuff(
       ERROR_SUCCESS,
       ERROR_GETLEN_FAILURE,
       "failed to get iv len from byte buff",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (!(key_size == EVP_CIPHER_key_length(type))),
+      0,
+      ERROR_INVALID_KEYLEN,
+      "key lenght is inconsistent with cipher type",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (!(iv_size == EVP_CIPHER_get_iv_length(type))),
+      0,
+      ERROR_INVALID_IVLEN,
+      "iv lenght is inconsistent with cipher type",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (GetLenByteBuff(plain
+                       ,(size_t *)&plain_size)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "failed to get plain len from byte buff",
       rc,cleanup);
 
   cipher_max = plain_size +EVP_CIPHER_get_block_size(type);
@@ -613,7 +635,7 @@ int DecryptByteBuff(
             const ByteBuff_t *key,
             const ByteBuff_t *iv,
             ByteBuff_t **plain,
-            ByteBuff_t *tag)
+            const ByteBuff_t *tag)
 {
   ERROR_CHECK_NULL_LOG(type,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(cipher,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -626,19 +648,20 @@ int DecryptByteBuff(
   unsigned char *plain_str = NULL;
   unsigned char *cipher_str = NULL;
   unsigned char *tag_str = NULL;
-  UserConfig_t *userconfig = NULL;
   int plain_size = 0;
   int cipher_size = 0;
-  int iv_size = 0;
   int plain_max = 0;
   int rc = 0;
+
+  int iv_size = 0;
+  int key_size = 0;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (GetLenByteBuff(cipher
-                       ,(size_t *)&cipher_size)
+      (GetLenByteBuff(key
+                       ,(size_t *)&key_size)
       ),
       ERROR_SUCCESS,
       ERROR_GETLEN_FAILURE,
-      "failed to get plain len from byte buff",
+      "failed to get key len from byte buff",
       rc,cleanup);
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetLenByteBuff(iv
@@ -648,6 +671,26 @@ int DecryptByteBuff(
       ERROR_GETLEN_FAILURE,
       "failed to get iv len from byte buff",
       rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (!(key_size == EVP_CIPHER_key_length(type))),
+      0,
+      ERROR_INVALID_KEYLEN,
+      "key lenght is inconsistent with cipher type",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (!(iv_size == EVP_CIPHER_get_iv_length(type))),
+      0,
+      ERROR_INVALID_IVLEN,
+      "iv lenght is inconsistent with cipher type",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (GetLenByteBuff(cipher
+                       ,(size_t *)&cipher_size)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "failed to get plain len from byte buff",
+      rc,cleanup);
 
   plain_max = cipher_size;
   MALLOC_CHECK_NULL_LOG(plain_str,
@@ -655,10 +698,6 @@ int DecryptByteBuff(
       ERROR_MEMORY_ALLOCATION,
       "cannot allocate for plain str");
 
-  MALLOC_CHECK_NULL_LOG(tag_str,
-      TAG_SIZE,
-      ERROR_MEMORY_ALLOCATION,
-      "cannot allocate for tag str");
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (GetBuffByteBuff(tag
@@ -699,7 +738,7 @@ int DecryptByteBuff(
 
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
-      (decrypt(encryption_options_fetchers[userconfig->encryption_option_idx]()
+      (decrypt(type
                ,key_str
                ,iv_str
                ,cipher_str
@@ -742,10 +781,6 @@ cleanup:
   if (iv_str) {
     OPENSSL_cleanse(iv_str,iv_size);
     free(iv_str);
-  }
-  if (userconfig) {
-    OPENSSL_cleanse(userconfig,sizeof(UserConfig_t));
-    free(userconfig);
   }
   return rc;
 }

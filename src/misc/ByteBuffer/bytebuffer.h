@@ -5,9 +5,8 @@
 typedef struct ByteBuff_s  ByteBuff_t ;
 
 #include "includes.h"
-#include "encryption.h" 
-#include "user.h"
 
+int bytebuffsize(void) ;
 
 /*note : these buffer are NOT null terminated , they designed to 
  * be used inherently with the lenght member in mind , do NOT use them as strings*/
@@ -43,6 +42,7 @@ enum ByteBuffErrors {
   ERROR_APPENDBUFF_FAILED = -6006,
   ERROR_APPENDSTRBUFF_FAILED = -6007,
   ERROR_GETBUFF_NL_FAILURE = -6008,
+  ERROR_LEN_VAR_TOO_SMALL = -6009
 };
 
 #endif

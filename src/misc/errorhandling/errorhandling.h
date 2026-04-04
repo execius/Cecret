@@ -197,4 +197,14 @@ do {\
     return MemAllocError;\
   }\
 } while (0)
+
+#define MALLOC_CHECK_NULL_SET_RC_GOTO(ptr,size,MemAllocError,desc,rc,label) \
+do {\
+  (ptr) = malloc(size);\
+  if(NULL == (ptr)){\
+    Error_LogHelper(MemAllocError, desc, __LINE__, __func__, __FILE__);\
+    (rc) = (MemAllocError);\
+    goto label;\
+  }\
+} while (0)
 #endif 

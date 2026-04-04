@@ -34,6 +34,7 @@ int InitUser(user_t **user
   (*user)->user_db_path = NULL;
   (*user)->hashed_pass = NULL;
   (*user)->key = NULL;
+  (*user)->username = NULL;
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupByteBuff(&(*user)->username,username)), ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
@@ -46,6 +47,12 @@ int InitUser(user_t **user
       "failed to duplicate user db path bytebuffer",
       rc,cleanup);
 
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+    (DupByteBuff(&(*user)->lookup_salt, lookup_salt)),
+    ERROR_SUCCESS,
+    ERROR_BUFFDUP_FAILURE,
+    "failed to duplicate lookup salt",
+    rc, cleanup);
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (DupHashingField(&(*user)->hashed_pass,hashed_pass)),
@@ -82,7 +89,7 @@ int CreateUser(user_t **user
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   *user = NULL;
-  int rc;
+  int rc = 0;
 
   HashingField_t *hashed_pass_hf = NULL,
                  *key_hf = NULL,
@@ -225,13 +232,15 @@ int CreateUser(user_t **user
       userconfig)),
     ERROR_SUCCESS,
     ERROR_USER_INIT,
-    "failed to initialize user db path",
+    "failed to initialize user",
     rc,cleanup);
 
   rc = ERROR_SUCCESS;
 cleanup:
   if (lookup_salt) DestroyByteBuff_Secure(lookup_salt);
   if (hashed_pass_hf) DestroyHashingField(hashed_pass_hf);
+  if (password_hash_hf) DestroyHashingField(password_hash_hf);
+  if (password_key_hf) DestroyHashingField(password_key_hf);
   if (key_hf) DestroyHashingField(key_hf);
   if (user_db_path)DestroyByteBuff_Secure(user_db_path);
   if (lookup_salt_buf){
@@ -253,17 +262,12 @@ int DestroyUser(user_t *user){
   free(user);
   return ERROR_SUCCESS;
 }
-int LoadUser(user_t *user,const char *username){
-  return ERROR_SUCCESS;
-}
-int SaveUser(user_t *user){
-  return ERROR_SUCCESS;
-}
-int ChangeUserPass(user_t *usre,ByteBuff_t *newpassword){
+
+int ChangeUserPass(user_t *user,ByteBuff_t *newpassword){
   return ERROR_SUCCESS;
 }
 
-int UserGetUsername(user_t *user,ByteBuff_t **username){
+int UserGetUsername(const user_t *user,ByteBuff_t **username){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -273,7 +277,7 @@ int UserGetUsername(user_t *user,ByteBuff_t **username){
       "failed to duplicate username buff");
   return ERROR_SUCCESS;
 }
-int UserGetKey(user_t *user,HashingField_t **key){
+int UserGetKey(const user_t *user,HashingField_t **key){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(key,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -284,7 +288,7 @@ int UserGetKey(user_t *user,HashingField_t **key){
   return ERROR_SUCCESS;
 }
 
-int UserGetHashedPass(user_t *user,HashingField_t **hashed_pass){
+int UserGetHashedPass(const user_t *user,HashingField_t **hashed_pass){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(hashed_pass,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -297,28 +301,28 @@ int UserGetHashedPass(user_t *user,HashingField_t **hashed_pass){
 
 }
 
-int UserGetDbPath(user_t *user, ByteBuff_t **user_db_path){
+int UserGetDbPath(const user_t *user, ByteBuff_t **user_db_path){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(user_db_path,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
       (DupByteBuff(user_db_path,user->user_db_path)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate lookup_salt buff");
+      "failed to duplicate user_db_path buff");
   return ERROR_SUCCESS;
 }
 
-int UserGetLookupSalt(user_t *user, ByteBuff_t **lookup_salt){
+int UserGetLookupSalt(const user_t *user, ByteBuff_t **lookup_salt){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(lookup_salt,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
       (DupByteBuff(lookup_salt,user->lookup_salt)),
       ERROR_SUCCESS,
       ERROR_BUFFDUP_FAILURE,
-      "failed to duplicate user db path buff");
+      "failed to duplicate lookup_salt   buff");
   return ERROR_SUCCESS;
 }
-int UserGetUserConf(user_t *user,UserConfig_t **userconf){
+int UserGetUserConf(const user_t *user,UserConfig_t **userconf){
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(userconf,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   MALLOC_CHECK_NULL_LOG(*userconf,

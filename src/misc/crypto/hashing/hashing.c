@@ -6,8 +6,8 @@ typedef struct HashingField_s {
 } HashingField_t ;
 
 int InitHashingField(HashingField_t **hf,
-    ByteBuff_t *text,
-    ByteBuff_t *salt) {
+    const ByteBuff_t *text,
+    const ByteBuff_t *salt) {
   ERROR_CHECK_NULL_LOG(hf,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(salt,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -40,7 +40,7 @@ cleanup:
 }
 
 int CreateHashingField(HashingField_t **hf,
-    ByteBuff_t *text) {
+    const ByteBuff_t *text) {
   ERROR_CHECK_NULL_LOG(hf,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(text,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
@@ -49,12 +49,6 @@ int CreateHashingField(HashingField_t **hf,
   int rc = 0 ;
   MALLOC_CHECK_NULL_LOG(salt,SALT_SIZE,ERROR_MEMORY_ALLOCATION,
       "cannot allocate encryption field");
-
-  MALLOC_CHECK_NULL_LOG(*hf,sizeof(HashingField_t),ERROR_MEMORY_ALLOCATION,
-      "cannot allocate encryption field");
-  (*hf)->text = NULL;
-  (*hf)->salt = NULL;
-
 
   ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
       (RAND_bytes(
@@ -174,7 +168,7 @@ hash_func_t hashing_options_fetchers[] = {
 int pkcs5_keyed_hash(const char *master,
                      int  master_size,
                      unsigned char *key,
-                     unsigned char *salt,
+                     const unsigned char *salt,
                      int salt_size,
                      const EVP_MD *digest,
                      int key_size,

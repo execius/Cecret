@@ -2,68 +2,82 @@
 #include "bytebuffer.h" 
 
 typedef struct ByteBuff_s {
-  unsigned char buff[STRMAX];
+  unsigned char *buff;
   size_t len;
 } ByteBuff_t ;
 
-int SanityCheckBuff(const ByteBuff_t *bytebuffer){
-  ERROR_CHECK_NULL_LOG(bytebuffer,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-      (bytebuffer->len > STRMAX),
-      1,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "username lenght is larger than string lenght limit");
-  return ERROR_SUCCESS;
+int bytebuffsize(void) {
+  return sizeof(ByteBuff_t);
 }
 int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  int rc = 0;
   ERROR_CHECK_SUCCESS_LOG(
-      (len > STRMAX),
+      (len < 1),
       1,
-      ERROR_LEN_VAR_LARGER_THAN_STRMAX,
-      "username lenght is larger than string lenght limit");
+      ERROR_LEN_VAR_TOO_SMALL,
+      "username lenght is too small < 1");
 
   MALLOC_CHECK_NULL_LOG(*bytebuff,
       sizeof(ByteBuff_t),
       ERROR_MEMORY_ALLOCATION,
       "cannot allocate bytebuff");
 
-  memset((*bytebuff)->buff, 0, STRMAX);
+  MALLOC_CHECK_NULL_SET_RC_GOTO((*bytebuff)->buff,
+      len,
+      ERROR_MEMORY_ALLOCATION,
+      "cannot allocate bytebuff buffer",
+      rc,
+      cleanup);
+
+  memset((*bytebuff)->buff, 0, len);
   memcpy((*bytebuff)->buff,buff,len);
   (*bytebuff)->len = len;
   return ERROR_SUCCESS;
+cleanup :
+  if (*bytebuff) {
+    if ((*bytebuff)->buff) {
+      OPENSSL_cleanse((*bytebuff)->buff,(*bytebuff)->len);
+      free((*bytebuff)->buff);
+      (*bytebuff)->buff = NULL;
+    } 
+    OPENSSL_cleanse(*bytebuff,sizeof(ByteBuff_t));
+    free(*bytebuff);
+    *bytebuff = NULL;
+  } 
+  return rc;
+
 }
 
 int DestroyByteBuff_Secure(ByteBuff_t *bytebuff){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(bytebuff->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  OPENSSL_cleanse(bytebuff->buff, bytebuff->len);
   OPENSSL_cleanse(bytebuff, sizeof(ByteBuff_t));
+  free(bytebuff->buff);
   free(bytebuff);
   return ERROR_SUCCESS;
 }
 
 int DestroyByteBuff_NoWipe(ByteBuff_t *bytebuff){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  free(bytebuff->buff);
   free(bytebuff);
   return ERROR_SUCCESS;
 }
 
 int DupByteBuff(ByteBuff_t **dst,const ByteBuff_t *src){
   ERROR_CHECK_NULL_LOG(src,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(src->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(dst,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(src)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "source byte buffer lenght is corrupted");
 
-  MALLOC_CHECK_NULL_LOG(*dst,
-      sizeof(ByteBuff_t),
-      ERROR_MEMORY_ALLOCATION,
-      "cannot allocate bytebuff");
-  memset((*dst)->buff, 0, STRMAX);
-  memcpy((*dst)->buff,src->buff,src->len);
-  (*dst)->len = src ->len;
+  ERROR_CHECK_SUCCESS_LOG(
+      (InitByteBuff(dst,src->buff,src->len)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to inittialize user");
+  ;
   return ERROR_SUCCESS;
 }
 
@@ -71,11 +85,6 @@ int GetBuffByteBuff(const ByteBuff_t *bytebuff,unsigned char **buff){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(bytebuff)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "byte buffer lenght is corrupted");
   MALLOC_CHECK_NULL_LOG(*buff,
       bytebuff->len,
       ERROR_MEMORY_ALLOCATION,
@@ -87,13 +96,9 @@ int GetBuffByteBuff(const ByteBuff_t *bytebuff,unsigned char **buff){
 
 int GetBuffByteBuff_NullTerminated(const ByteBuff_t *bytebuff,unsigned char **buff){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(bytebuff->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(bytebuff)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "byte buffer lenght is corrupted");
   MALLOC_CHECK_NULL_LOG(*buff,
       bytebuff->len+1,
       ERROR_MEMORY_ALLOCATION,
@@ -106,11 +111,6 @@ int GetBuffByteBuff_NullTerminated(const ByteBuff_t *bytebuff,unsigned char **bu
 int GetLenByteBuff(const ByteBuff_t *bytebuff,size_t *len){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(len,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(bytebuff)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "byte buffer lenght is corrupted");
 
   *len = bytebuff->len;
   return ERROR_SUCCESS;
@@ -119,22 +119,15 @@ ERROR_CHECK_SUCCESS_LOG(
 int AppendByteBuff(ByteBuff_t *appendee,ByteBuff_t *appended){
   ERROR_CHECK_NULL_LOG(appendee,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(appended,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(appendee)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "appendee byte buffer lenght is corrupted");
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(appended)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "appended byte buffer lenght is corrupted");
-
-  ERROR_CHECK_SUCCESS_LOG(
-      (appendee->len > STRMAX - appended->len),
-      1,
-      ERROR_APPENDBUFF_OVERFLOW,
-      "the sum of the two buffers' lenghts is larger than maximum size");
+  ERROR_CHECK_NULL_LOG(appended->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(appendee->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  if (appendee->len > SIZE_MAX - appended->len)
+    return ERROR_APPENDBUFF_OVERFLOW;
+  void *tmp = realloc(appendee->buff,appendee->len + appended->len);
+  if (!tmp){
+    return ERROR_MEMORY_ALLOCATION;
+  }
+  appendee->buff = tmp;
   memcpy(appendee->buff + appendee->len,appended->buff,appended->len);
   appendee->len += appended->len;
   return ERROR_SUCCESS;
@@ -142,18 +135,16 @@ int AppendByteBuff(ByteBuff_t *appendee,ByteBuff_t *appended){
 
 int __AppendstrByteBuff(ByteBuff_t *appendee,const char *appended,size_t len){
   ERROR_CHECK_NULL_LOG(appendee,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(appendee->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(appended,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
-  ERROR_CHECK_SUCCESS_LOG(
-      (SanityCheckBuff(appendee)),
-      ERROR_SUCCESS,
-      ERROR_CORRUPTED_BYTEBUFF,
-      "appendee byte buffer lenght is corrupted");
 
-  ERROR_CHECK_SUCCESS_LOG(
-      (appendee->len > STRMAX - len),
-      1,
-      ERROR_APPENDBUFF_OVERFLOW,
-      "the sum of the two buffers' lenghts is larger than maximum size");
+  if (appendee->len > SIZE_MAX - len)
+    return ERROR_APPENDBUFF_OVERFLOW;
+  void *tmp = realloc(appendee->buff,appendee->len + len);
+  if (!tmp){
+    return ERROR_MEMORY_ALLOCATION;
+  }
+  appendee->buff = tmp;
   memcpy(appendee->buff + appendee->len,appended,len);
   appendee->len += len;
   return ERROR_SUCCESS;

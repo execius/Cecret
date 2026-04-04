@@ -2,6 +2,7 @@
 #define SQLTINTR
 #include "includes.h"
 #include "globalconfig.h"
+#include "bytebuffer.h" 
 #include "user.h"
 
 int OpenDb(sqlite3 **db,const char *path);
@@ -44,14 +45,28 @@ id INTEGER PRIMARY KEY CHECK (id = 1),\
 username TEXT NOT NULL ,\
 hashed_pass BLOB NOT NULL ,\
 lookup_salt BLOB NOT NULL ,\
-\
-encryption_option_idx INTEGER ,\
-\
-hashing_option_idx INTEGER ,\
-\
-key_hashing_option_idx INTEGER ,\
-\
-lookup_hashing_option_idx INTEGER );WITHOUT ROWID";
+userconfig BLOB NOT NULL );WITHOUT ROWID";
 
+const char *insert_user_db_sql = "\
+INSERT INTO master (username, db_path)\
+VALUES (?, ?);";
 
+const char *insert_acccount_sql = "\
+INSERT INTO credentials (\
+    username_cipher,\
+    email_cipher,\
+    password_cipher,\
+    platform_cipher,\
+    note_cipher,\
+    username_hash,\
+    platform_hash,\
+    email_hash\
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+const char *insert_config_sql = "\
+INSERT INTO configs (\
+    username,\
+    hashed_pass,\
+    lookup_salt,\
+    userconfig\
+) VALUES (?, ?, ?, ?);";
 #endif /* ifndef MACRO */

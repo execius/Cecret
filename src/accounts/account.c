@@ -109,7 +109,7 @@ int DestroyAccount(Account_t *account){
 }
 
 
-int AccountGetUsername(Account_t *account,ByteBuff_t **username){
+int AccountGetUsername(const Account_t *account,ByteBuff_t **username){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(username,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -121,7 +121,7 @@ int AccountGetUsername(Account_t *account,ByteBuff_t **username){
 }
 
 
-int AccountGetPassword(Account_t *account,ByteBuff_t **password){
+int AccountGetPassword(const Account_t *account,ByteBuff_t **password){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(password,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -132,7 +132,7 @@ int AccountGetPassword(Account_t *account,ByteBuff_t **password){
   return ERROR_SUCCESS;
 }
 
-int AccountGetEmail(Account_t *account,ByteBuff_t **email){
+int AccountGetEmail(const Account_t *account,ByteBuff_t **email){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(email,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -143,7 +143,7 @@ int AccountGetEmail(Account_t *account,ByteBuff_t **email){
   return ERROR_SUCCESS;
 }
 
-int AccountGetPlatform(Account_t *account,ByteBuff_t **platform){
+int AccountGetPlatform(const Account_t *account,ByteBuff_t **platform){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(platform,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -155,7 +155,7 @@ int AccountGetPlatform(Account_t *account,ByteBuff_t **platform){
 }
 
 
-int AccountGetNote(Account_t *account,ByteBuff_t **note){
+int AccountGetNote(const Account_t *account,ByteBuff_t **note){
   ERROR_CHECK_NULL_LOG(account,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_NULL_LOG(note,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
   ERROR_CHECK_SUCCESS_LOG(
@@ -296,7 +296,7 @@ int DestroyEncryptedAccount(EncryptedAccount_t *account){
 }
 
 
-int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
+int EncryptedAccountGetUsernameHash(const EncryptedAccount_t *eac,
     ByteBuff_t **username_hash)
 {
   ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
@@ -309,7 +309,7 @@ int EncryptedAccountGetUsernameHash(EncryptedAccount_t *eac,
   return ERROR_SUCCESS;
 }
 
-int EncryptedAccountGetPlatformHash(EncryptedAccount_t *eac,
+int EncryptedAccountGetPlatformHash(const EncryptedAccount_t *eac,
     ByteBuff_t **platform_hash)
 {
   ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
@@ -322,7 +322,7 @@ int EncryptedAccountGetPlatformHash(EncryptedAccount_t *eac,
   return ERROR_SUCCESS;
 }
 
-int EncryptedAccountGetEmailHash(EncryptedAccount_t *eac,
+int EncryptedAccountGetEmailHash(const EncryptedAccount_t *eac,
     ByteBuff_t **email_hash)
 {
   ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
@@ -348,6 +348,7 @@ int EncryptAccount(Account_t *account
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
 
+  *eac = NULL;
   int rc = 0;
   const EVP_CIPHER *type = NULL;
   const EVP_MD *digest = NULL;
@@ -617,9 +618,7 @@ cleanup:
   if (key_hf) DestroyHashingField(key_hf);
   if (key) DestroyByteBuff_Secure(key);
   if (lookup_salt) DestroyByteBuff_Secure(lookup_salt);
-  if (account->username) DestroyByteBuff_Secure(account->username);
-  if (account->platform) DestroyByteBuff_Secure(account->platform);
-  if (account->email) DestroyByteBuff_Secure(account->email);
+  if (userconfig) free(userconfig);
   return rc;
 }
 
@@ -632,6 +631,7 @@ int DecryptAccount(EncryptedAccount_t *eac
   ERROR_CHECK_NULL_LOG(eac,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(user,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
 
+  *account = NULL;
 
   const EVP_CIPHER *type = NULL;
   int rc = 0;
@@ -801,7 +801,7 @@ cleanup:
   if (key) DestroyByteBuff_Secure(key);
   if (username_bb) DestroyByteBuff_Secure(username_bb);
   if (password_bb) DestroyByteBuff_Secure(password_bb);
-  if (platform_bb) DestroyByteBuff_Secure(username_bb);
+  if (platform_bb) DestroyByteBuff_Secure(platform_bb);
   if (email_bb) DestroyByteBuff_Secure(email_bb);
   if (note_bb) DestroyByteBuff_Secure(note_bb);
   if (key_hf) DestroyHashingField(key_hf);

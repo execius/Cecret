@@ -6,6 +6,7 @@
 typedef struct HashingField_s HashingField_t ;
 typedef const EVP_MD* (*hash_func_t)(void);
 
+int HashingFieldSize(void) ;
 
 typedef enum { 
   SHA_512,
@@ -19,11 +20,11 @@ typedef enum {
 #include "bytebuffer.h"
 
 int InitHashingField(HashingField_t **hf,
-    ByteBuff_t *text,
-    ByteBuff_t *salt);
+    const ByteBuff_t *text,
+    const ByteBuff_t *salt);
 
 int CreateHashingField(HashingField_t **hf,
-    ByteBuff_t *text);
+    const ByteBuff_t *text);
 int DupHashingField(HashingField_t **dst,
     const HashingField_t *src);
 
@@ -38,7 +39,7 @@ int HashingFieldGetSalt(const HashingField_t *hf,ByteBuff_t **salt);
 int pkcs5_keyed_hash(const char *master,
                      int  master_size,
                      unsigned char *key,
-                     unsigned char *salt,
+                     const unsigned char *salt,
                      int salt_size,
                      const EVP_MD *digest,
                      int key_size,
