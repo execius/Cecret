@@ -9,15 +9,15 @@ typedef struct ByteBuff_s {
 int bytebuffsize(void) {
   return sizeof(ByteBuff_t);
 }
-int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len){
+int InitByteBuff(ByteBuff_t **bytebuff,const unsigned char *buff,size_t len){
   ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   int rc = 0;
   ERROR_CHECK_SUCCESS_LOG(
-      (len < 1),
+      (len < 1 || len > SIZE_MAX),
       1,
-      ERROR_LEN_VAR_TOO_SMALL,
-      "username lenght is too small < 1");
+      ERROR_LEN_VAR_INVALID,
+      "username lenght is invalid");
 
   MALLOC_CHECK_NULL_LOG(*bytebuff,
       sizeof(ByteBuff_t),
@@ -31,7 +31,6 @@ int InitByteBuff(ByteBuff_t **bytebuff,unsigned char *buff,size_t len){
       rc,
       cleanup);
 
-  memset((*bytebuff)->buff, 0, len);
   memcpy((*bytebuff)->buff,buff,len);
   (*bytebuff)->len = len;
   return ERROR_SUCCESS;
@@ -77,7 +76,6 @@ int DupByteBuff(ByteBuff_t **dst,const ByteBuff_t *src){
       ERROR_SUCCESS,
       ERROR_BUFFINIT_FAILURE,
       "failed to inittialize user");
-  ;
   return ERROR_SUCCESS;
 }
 
@@ -133,7 +131,7 @@ int AppendByteBuff(ByteBuff_t *appendee,ByteBuff_t *appended){
   return ERROR_SUCCESS;
 }
 
-int __AppendstrByteBuff(ByteBuff_t *appendee,const char *appended,size_t len){
+int AppendBytesByteBuff(ByteBuff_t *appendee,const char *appended,size_t len){
   ERROR_CHECK_NULL_LOG(appendee,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(appendee->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
   ERROR_CHECK_NULL_LOG(appended,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
@@ -147,6 +145,52 @@ int __AppendstrByteBuff(ByteBuff_t *appendee,const char *appended,size_t len){
   appendee->buff = tmp;
   memcpy(appendee->buff + appendee->len,appended,len);
   appendee->len += len;
+  return ERROR_SUCCESS;
+}
+
+
+int SerializeByteBuff(const ByteBuff_t *bytebuff,unsigned char **out,size_t *outlen)
+{
+  ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(outlen,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(bytebuff->buff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(out,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  if (bytebuff->len > SIZE_MAX - sizeof(uint64_t))
+    return ERROR_SERIALIZED_DATA_CORRUPTION;
+  uint64_t len = bytebuff->len;
+
+  MALLOC_CHECK_NULL_LOG(*out,
+      sizeof(uint64_t)+bytebuff->len,
+      ERROR_MEMORY_ALLOCATION,
+      "cannot allocate buffer for seialization");
+  *outlen = sizeof(uint64_t) + bytebuff->len;
+  memcpy(*out,&len,sizeof(uint64_t));
+  memcpy(*out+sizeof(uint64_t),bytebuff->buff,bytebuff->len);
+  return ERROR_SUCCESS;
+}
+
+int DeserializeByteBuff(ByteBuff_t **bytebuff,
+    const unsigned char *in,
+    size_t in_size)
+{
+
+  ERROR_CHECK_NULL_LOG(bytebuff,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  ERROR_CHECK_NULL_LOG(in,ERROR_NULL_VALUE_GIVEN,"null value in parameter");
+  uint64_t len  =0 ;
+  if (in_size < sizeof(uint64_t))
+    return ERROR_SERIALIZED_DATA_CORRUPTION;
+  memcpy(&len,in,sizeof(uint64_t));
+  if ((len > in_size - sizeof(uint64_t )) || len > SIZE_MAX)
+  {
+    return ERROR_SERIALIZED_DATA_CORRUPTION;
+  }
+  const unsigned char *buff  = in+sizeof(uint64_t);
+
+  ERROR_CHECK_SUCCESS_LOG(
+      (InitByteBuff(bytebuff,buff,(size_t)len)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to inittialize user");
   return ERROR_SUCCESS;
 }
 

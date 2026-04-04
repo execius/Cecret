@@ -159,6 +159,154 @@ int HashingFieldGetSalt(const HashingField_t *hf,ByteBuff_t **salt){
 }
 
 
+int SerializeHashingField(const HashingField_t *hf
+    ,ByteBuff_t **out)
+{
+  ERROR_CHECK_NULL_LOG(hf,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(out,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  *out = NULL;
+
+  int rc = 0;
+  unsigned char *text_serialized = NULL,
+                *salt_serialized = NULL;
+  size_t text_serialized_length = 0,
+         salt_serialized_length = 0;
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (SerializeByteBuff(hf->salt,&salt_serialized,&salt_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_SERIALIZATION_FAILURE,
+      "failed to serialize salt",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (SerializeByteBuff(hf->text,&text_serialized,&text_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_SERIALIZATION_FAILURE,
+      "failed to serialize text",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitByteBuff(out,
+                    text_serialized,
+                    text_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for hash filed serialization",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (AppendBytesByteBuff(*out,
+                           (const char *)salt_serialized,
+                           salt_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_APPENDBYTES_FAILED,
+      "failed to appends salt  to  byte buffer for hash filed serialization",
+      rc,cleanup);
+  rc = ERROR_SUCCESS;
+cleanup:
+  if (text_serialized) 
+  {
+    OPENSSL_cleanse(text_serialized,text_serialized_length);
+    free(text_serialized);
+  }
+  if (salt_serialized) 
+  {
+    OPENSSL_cleanse(salt_serialized,salt_serialized_length);
+    free(salt_serialized);
+  }
+  if (rc != ERROR_SUCCESS){
+    if(*out){
+      DestroyByteBuff_Secure(*out);
+    }
+  }
+  return rc;
+}
+
+
+int DeserializeHashingField(HashingField_t **hf,
+    const ByteBuff_t *in)
+{
+  ERROR_CHECK_NULL_LOG(hf,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(in,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  *hf = NULL;
+
+  int rc = 0;
+   ByteBuff_t *text = NULL,
+              *salt = NULL;
+   unsigned char *buff = NULL;
+   size_t len = 0,
+          salt_offset =0;
+   
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      ( GetLenByteBuff(in , &len)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "fialed to get len to deserialize",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (
+       GetBuffByteBuff(in, &buff)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_FAILURE,
+      "failed to get buf to deserialize ",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DeserializeByteBuff(&text,buff,len)),
+      ERROR_SUCCESS,
+      ERROR_DESERIALIZATION_FAILURE,
+      "failed to deserialize text",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      ( GetLenByteBuff(text , &salt_offset)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "fialed to get len for salt ofset",
+      rc,cleanup);
+  salt_offset += sizeof(uint64_t);
+  if (salt_offset > len) {
+    rc = ERROR_SERIALIZED_DATA_CORRUPTION;
+    goto cleanup;
+}
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DeserializeByteBuff(&salt,buff+salt_offset,len - salt_offset)),
+      ERROR_SUCCESS,
+      ERROR_DESERIALIZATION_FAILURE,
+      "failed to deserialize salt",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitHashingField(hf,
+                    text,
+                    salt)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize hash filed deserialization",
+      rc,cleanup);
+  rc = ERROR_SUCCESS;
+cleanup:
+  if (text) 
+  {
+    DestroyByteBuff_Secure(text);
+  }
+  if (salt) 
+  {
+    DestroyByteBuff_Secure(salt);
+  }
+    if (buff) 
+  {
+    OPENSSL_cleanse(buff,len);
+    free(buff);
+  }
+ 
+  return rc;
+}
+
+
+
+
 hash_func_t hashing_options_fetchers[] = {
 [SHA_512] = EVP_sha512,
 [SHA_384] = EVP_sha384,

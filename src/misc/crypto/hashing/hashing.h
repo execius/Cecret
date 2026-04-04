@@ -29,6 +29,8 @@ int DupHashingField(HashingField_t **dst,
     const HashingField_t *src);
 
 int DestroyHashingField(HashingField_t *hf);
+int SerializeHashingField(const HashingField_t *hf,ByteBuff_t **out);
+int DeserializeHashingField(HashingField_t **hf,const ByteBuff_t *in);
 
 
 int HashingFieldGetText(const HashingField_t *hf,ByteBuff_t **text);
@@ -67,6 +69,7 @@ int hash_not_keyed(const unsigned char *plain,
 enum CryptohashErrors{
   ERROR_HASH_FAILED = -7000,
   ERROR_INITHASHINGFIELD_FAILURE = -7004,
+  ERROR_SERIALIZEHASHINGFIELD_FAILURE = -7004,
   ERROR_CREATEHASHINGFIELD_FAILURE = -7005,
   ERROR_DUPHASHINGFIELD_FAILURE = -7006,
   ERROR_HASHINGFIELD_GETTEXT_FAILURE = -7007,

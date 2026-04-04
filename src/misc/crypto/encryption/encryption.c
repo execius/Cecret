@@ -212,6 +212,199 @@ int EncryptionFieldGetTag(const EncryptionField_t *ef,ByteBuff_t **tag){
 }
 
 
+int SerializeEncryptionField(const EncryptionField_t *ef
+    ,ByteBuff_t **out)
+{
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(out,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  *out = NULL;
+
+  int rc = 0;
+  unsigned char *text_serialized = NULL,
+                *iv_serialized = NULL,
+                *tag_serialized = NULL;
+  size_t text_serialized_length = 0,
+         iv_serialized_length = 0,
+         tag_serialized_length = 0;
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (SerializeByteBuff(ef->iv,&iv_serialized,&iv_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_SERIALIZATION_FAILURE,
+      "failed to serialize iv",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (SerializeByteBuff(ef->tag,&tag_serialized,&tag_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_SERIALIZATION_FAILURE,
+      "failed to serialize tag",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (SerializeByteBuff(ef->text,&text_serialized,&text_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_SERIALIZATION_FAILURE,
+      "failed to serialize text",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitByteBuff(out,
+                    text_serialized,
+                    text_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize byte buffer for hash filed serialization",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (AppendBytesByteBuff(*out,
+                           (const char *)iv_serialized,
+                           iv_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_APPENDBYTES_FAILED,
+      "failed to appends iv  to  byte buffer for hash filed serialization",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (AppendBytesByteBuff(*out,
+                           (const char *)tag_serialized,
+                           tag_serialized_length)),
+      ERROR_SUCCESS,
+      ERROR_APPENDBYTES_FAILED,
+      "failed to appends tag  to  byte buffer for hash filed serialization",
+      rc,cleanup);
+  rc = ERROR_SUCCESS;
+cleanup:
+  if (text_serialized) 
+  {
+    OPENSSL_cleanse(text_serialized,text_serialized_length);
+    free(text_serialized);
+  }
+  if (iv_serialized) 
+  {
+    OPENSSL_cleanse(iv_serialized,iv_serialized_length);
+    free(iv_serialized);
+  }
+  if (tag_serialized) {
+    OPENSSL_cleanse(tag_serialized,tag_serialized_length);
+    free(tag_serialized);
+  }
+  if (rc != ERROR_SUCCESS){
+    if(*out){
+      DestroyByteBuff_Secure(*out);
+    }
+  }
+  return rc;
+}
+int DeserializeEncryptionField(EncryptionField_t **ef,
+    const ByteBuff_t *in)
+{
+  ERROR_CHECK_NULL_LOG(ef,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  ERROR_CHECK_NULL_LOG(in,ERROR_NULL_VALUE_GIVEN,"NULL parameter");
+  *ef = NULL;
+
+  int rc = 0;
+   ByteBuff_t *text = NULL,
+              *iv = NULL,
+              *tag = NULL;
+   unsigned char *buff = NULL;
+   size_t len = 0,
+          iv_offset =0,
+          tag_offset =0;
+   
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      ( GetLenByteBuff(in , &len)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "fialed to get len to deserialize",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (
+       GetBuffByteBuff(in, &buff)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETBUFF_FAILURE,
+      "failed to get buf to deserialize ",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DeserializeByteBuff(&text,buff,len)),
+      ERROR_SUCCESS,
+      ERROR_DESERIALIZATION_FAILURE,
+      "failed to deserialize text",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      ( GetLenByteBuff(text , &iv_offset)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "fialed to get len for iv ofset",
+      rc,cleanup);
+  iv_offset += sizeof(uint64_t);
+  if (iv_offset > len) {
+    rc = ERROR_SERIALIZED_DATA_CORRUPTION;
+    goto cleanup;
+}
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DeserializeByteBuff(&iv,buff+iv_offset,len - iv_offset)),
+      ERROR_SUCCESS,
+      ERROR_DESERIALIZATION_FAILURE,
+      "failed to deserialize iv",
+      rc,cleanup);
+
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      ( GetLenByteBuff(iv , &tag_offset)
+      ),
+      ERROR_SUCCESS,
+      ERROR_GETLEN_FAILURE,
+      "fialed to get len for tag ofset",
+      rc,cleanup);
+  tag_offset += sizeof(uint64_t);
+  if (tag_offset > SIZE_MAX - iv_offset) {
+    rc = ERROR_SERIALIZED_DATA_CORRUPTION;
+    goto cleanup;
+  }
+tag_offset += iv_offset;
+  if (tag_offset > len) {
+    rc = ERROR_SERIALIZED_DATA_CORRUPTION;
+    goto cleanup;
+}
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (DeserializeByteBuff(&tag,buff+tag_offset,len - tag_offset)),
+      ERROR_SUCCESS,
+      ERROR_DESERIALIZATION_FAILURE,
+      "failed to deserialize tag",
+      rc,cleanup);
+  ERROR_CHECK_SUCCESS_SET_RC_GOTO_LOG(
+      (InitEncryptionField(ef,
+                    text,
+                    iv,
+                    tag)),
+      ERROR_SUCCESS,
+      ERROR_BUFFINIT_FAILURE,
+      "failed to initialize hash filed deserialization",
+      rc,cleanup);
+  rc = ERROR_SUCCESS;
+cleanup:
+  if (text) 
+  {
+    DestroyByteBuff_Secure(text);
+  }
+  if (tag) 
+  {
+    DestroyByteBuff_Secure(tag);
+  }
+  if (iv) 
+  {
+    DestroyByteBuff_Secure(iv);
+  }
+    if (buff) 
+  {
+    OPENSSL_cleanse(buff,len);
+    free(buff);
+  }
+ 
+  return rc;
+}
 
 
 
